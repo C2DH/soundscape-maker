@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import fft from 'fft-js'
+import * as THREE from 'three'
+// Canvas not used directly; `Scene` from ex-frontend provides the Canvas
+import Scene from '../../ex-frontend/src/components/Scene'
+
+// lightweight mobile check (avoids adding `react-device-detect` dependency)
+const isMobile = typeof navigator !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent)
 import AudioInput from '../components/AudioInput'
+ 
 
 async function analyseAudioFile(
   file: File,
@@ -106,6 +113,7 @@ export default function GenerateJSON() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [numChunks, setNumChunks] = useState<number>(200)
+  const [amplifyFactor, setAmplifyFactor] = useState<number>(0.6)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -125,9 +133,15 @@ export default function GenerateJSON() {
     const url = URL.createObjectURL(file)
     setAudioUrl(url)
     setSelectedFile(file)
+
+    // prepare audio element immediately so we can play later
     if (audioRef.current) {
       audioRef.current.pause()
-      audioRef.current = null
+    }
+    audioRef.current = new Audio(url)
+    audioRef.current.onended = () => {
+      setIsPlaying(false)
+      setCurrentTime(0)
     }
   }
 
@@ -145,6 +159,8 @@ export default function GenerateJSON() {
       setAnalysis(data)
       setDuration(duration)
       setOutputJson(JSON.stringify(data, null, 2))
+      // autoplay disabled: user will press play manually
+      // (audioRef already prepared in handleAudioSelected)
     } catch (e) {
       console.error(e)
       setError('Failed to analyse audio.')
@@ -194,10 +210,34 @@ export default function GenerateJSON() {
 
   const totalChunks = analysis?.length ?? 0
 
+  // scale raw data to reasonable height and also produce vectors
+  const { soundLinesVectors, scaledLists } = (() => {
+    if (!analysis) return { soundLinesVectors: [] as THREE.Vector3[][], scaledLists: [] as number[][] }
+    // optionally amplify values; larger amplifyFactor should yield a taller model
+    const amplified = analysis.map((row) => row.map((y) => Math.pow(y, amplifyFactor)))
+    // instead of normalizing to a constant height, simply multiply by an overall
+    // constant so that increasing amplifyFactor makes the mesh visibly larger
+    const baseHeight = 3         // adjust if the mesh is too tall/short
+    const scaleFactor = amplifyFactor * baseHeight
+    const scaled = amplified.map((row) => row.map((y) => y * scaleFactor))
+    const vectors = scaled.map((row, t) =>
+      row.map((y, x) =>
+        new THREE.Vector3(
+          x - row.length / 2,
+          y,
+          t - Math.floor((analysis.length || 0) / 2),
+        ),
+      ),
+    )
+    return { soundLinesVectors: vectors, scaledLists: scaled }
+  })()
+
+  
+
   return (
     <main className="app-root">
       <h1>Generate JSON</h1>
-      <p>Upload an audio file to generate JSON data (no 3D visualization).</p>
+      <p>Upload an audio file to generate JSON data and preview the resulting soundscape below.</p>
 
       <AudioInput onAudioSelected={handleAudioSelected} />
 
@@ -213,6 +253,17 @@ export default function GenerateJSON() {
             value={numChunks}
             min={1}
             onChange={(e) => setNumChunks(Math.max(1, Number(e.target.value) || 1))}
+            style={{ width: 120 }}
+          />
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>amplify:</span>
+          <input
+            type="number"
+            value={amplifyFactor}
+            step="0.1"
+            min={0}
+            onChange={(e) => setAmplifyFactor(Number(e.target.value) || 0)}
             style={{ width: 120 }}
           />
         </label>
@@ -242,6 +293,10 @@ export default function GenerateJSON() {
 
       {analysis && totalChunks > 0 && (
         <div className="visual-section">
+          {/* ex-frontend Scene — uses Scene.tsx with its own camera, controls, lights and grid */}
+          <div style={{ width: '100%', height: '400px', marginBottom: '1rem' }}>
+            <Scene landscapeData={(analysis as any) || []} />
+          </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '0.5rem' }}>
             <button
               type="button"
