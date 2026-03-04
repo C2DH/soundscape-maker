@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import Home from './pages/Home'
 import GenerateJSON from './pages/GenerateJSON'

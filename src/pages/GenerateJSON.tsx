@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import fft from 'fft-js'
 import AudioInput from '../components/AudioInput'
 
@@ -7,7 +7,7 @@ async function analyseAudioFile(
   options?: { keepCount?: number; numChunks?: number },
 ): Promise<{ data: number[][]; duration: number }> {
   const keepCount = options?.keepCount ?? 48
-  const numChunks = options?.numChunks ?? 600
+  const numChunks = options?.numChunks ?? 200
 
   const arrayBuffer = await file.arrayBuffer()
 
@@ -15,7 +15,23 @@ async function analyseAudioFile(
   const audioContext = new AudioCtx()
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
 
-  const channelData = audioBuffer.getChannelData(0)
+
+  // resampling/converting to mono 44100Hz before analysis.
+  const targetSampleRate = 44100
+  const targetChannels = 1
+
+  let processedBuffer = audioBuffer
+  if (audioBuffer.sampleRate !== targetSampleRate || audioBuffer.numberOfChannels !== targetChannels) {
+    const OfflineCtx = (window as any).OfflineAudioContext || (window as any).webkitOfflineAudioContext || (window as any).OfflineAudioContext
+    const offlineCtx = new OfflineCtx(targetChannels, Math.ceil(audioBuffer.duration * targetSampleRate), targetSampleRate)
+    const source = offlineCtx.createBufferSource()
+    source.buffer = audioBuffer
+    source.connect(offlineCtx.destination)
+    source.start(0)
+    processedBuffer = await offlineCtx.startRendering()
+  }
+
+  const channelData = processedBuffer.getChannelData(0)
   const totalSamples = channelData.length
 
   const fftSize = 1024
@@ -54,21 +70,21 @@ async function analyseAudioFile(
   }
 
   if (!frequenciesPerChunk.length) {
-    return { data: [], duration: audioBuffer.duration }
+    return { data: [], duration: processedBuffer.duration }
   }
 
   const arrayLength = frequenciesPerChunk[0].length
   const zeroArray = Array(arrayLength).fill(0)
   const outputData = [zeroArray, ...frequenciesPerChunk, zeroArray]
 
-  return { data: outputData, duration: audioBuffer.duration }
+  return { data: outputData, duration: processedBuffer.duration }
 }
 
 function extendArrays(data: number[] = []) {
   const extended: number[] = []
-  amplifyArray(data, 2)
+  const amplifiedData = amplifyArray(data, 2)
 
-  for (let i = 0; i < data.length - 1; i++) {
+  for (let i = 0; i < amplifiedData.length - 1; i++) {
     extended.push(data[i])
     const midpoint = (data[i] + data[i + 1]) / 2
     extended.push(midpoint)
@@ -88,12 +104,13 @@ export default function GenerateJSON() {
   const [analysis, setAnalysis] = useState<number[][] | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [numChunks, setNumChunks] = useState<number>(200)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const handleAudioSelected = async (file: File) => {
-    setIsProcessing(true)
+  const handleAudioSelected = (file: File) => {
     setError(null)
     setOutputJson('')
     setAnalysis(null)
@@ -107,13 +124,24 @@ export default function GenerateJSON() {
 
     const url = URL.createObjectURL(file)
     setAudioUrl(url)
+    setSelectedFile(file)
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current = null
     }
+  }
+
+  const handleGenerate = async () => {
+    if (!selectedFile) return
+    setIsProcessing(true)
+    setError(null)
+    setOutputJson('')
+    setAnalysis(null)
+    setDuration(null)
+    setCurrentTime(0)
 
     try {
-      const { data, duration } = await analyseAudioFile(file)
+      const { data, duration } = await analyseAudioFile(selectedFile, { numChunks })
       setAnalysis(data)
       setDuration(duration)
       setOutputJson(JSON.stringify(data, null, 2))
@@ -172,6 +200,27 @@ export default function GenerateJSON() {
       <p>Upload an audio file to generate JSON data (no 3D visualization).</p>
 
       <AudioInput onAudioSelected={handleAudioSelected} />
+
+      <div style={{ marginTop: '0.75rem', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div>
+          <strong>Selected file:</strong> {selectedFile ? selectedFile.name : 'None'}
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>numChunks:</span>
+          <input
+            type="number"
+            value={numChunks}
+            min={1}
+            onChange={(e) => setNumChunks(Math.max(1, Number(e.target.value) || 1))}
+            style={{ width: 120 }}
+          />
+        </label>
+
+        <button type="button" onClick={handleGenerate} disabled={!selectedFile || isProcessing}>
+          Generate
+        </button>
+      </div>
 
       <div style={{ marginTop: '1rem' }}>
         <button

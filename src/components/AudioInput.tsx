@@ -20,7 +20,7 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
 
   return (
     <div className="card">
-      <label htmlFor="audio-input">Choose an audio file</label>
+      <label htmlFor="audio-input">Choose an audio file: </label>
       <input
         id="audio-input"
         type="file"
