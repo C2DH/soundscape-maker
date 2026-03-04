@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import fft from 'fft-js'
 import * as THREE from 'three'
-// Canvas not used directly; `Scene` from ex-frontend provides the Canvas
-import Scene from '../../ex-frontend/src/components/Scene'
+import { Canvas } from '@react-three/fiber'
+import { Grid, OrbitControls } from '@react-three/drei'
+import { Mesh } from 'three'
+
+// ex-frontend stores (use Scene.tsx as reference)
+import { useThemeStore as exUseThemeStore, useMeshStore as exUseMeshStore, useOrbitStore as exUseOrbitStore } from '../../ex-frontend/src/store'
 
 // lightweight mobile check (avoids adding `react-device-detect` dependency)
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent)
 import AudioInput from '../components/AudioInput'
+import AudioVisualizer from '../components/AudioVisualizer'
+import SoundScape from '../components/SoundScape'
  
 
 async function analyseAudioFile(
@@ -232,7 +238,39 @@ export default function GenerateJSON() {
     return { soundLinesVectors: vectors, scaledLists: scaled }
   })()
 
-  
+  // estimate maximum height from scaledLists for light placement
+  const modelHeight = scaledLists.length ? Math.max(...scaledLists.flat()) : 0
+
+  // compute adaptive light positions so lights follow amplify changes in real-time
+  // base offsets ensure lights remain above the mesh even when modelHeight is small
+  const baseLightOffset = 50
+  const lightY = baseLightOffset + modelHeight * 2 + amplifyFactor * 20
+  const lightXOffset = Math.max(20, modelHeight * 2)
+
+  // Scene refs and ex-frontend store wiring (copying Scene.tsx behavior)
+  const meshRef = useRef<Mesh | null>(null)
+  const orbitRef = useRef<any>(null)
+  const setMesh = exUseMeshStore((s) => s.setMesh)
+  const setOrbit = exUseOrbitStore((s) => s.setOrbit)
+  const cameraPos = exUseOrbitStore((s) => s.cameraPos)
+  const target = exUseOrbitStore((s) => s.target)
+  const gridColor = exUseThemeStore((s) => s.colors['--light'])
+
+  useEffect(() => {
+    if (meshRef.current) {
+      setMesh(meshRef.current)
+    }
+  }, [meshRef.current])
+
+  useEffect(() => {
+    if (meshRef.current && orbitRef.current) {
+      const controls = orbitRef.current
+      setOrbit(
+        controls.object.position.toArray() as [number, number, number],
+        controls.target.toArray() as [number, number, number],
+      )
+    }
+  }, [meshRef.current, orbitRef.current])
 
   return (
     <main className="app-root">
@@ -293,9 +331,48 @@ export default function GenerateJSON() {
 
       {analysis && totalChunks > 0 && (
         <div className="visual-section">
-          {/* ex-frontend Scene — uses Scene.tsx with its own camera, controls, lights and grid */}
+          {/* 3D preview canvas */}
           <div style={{ width: '100%', height: '400px', marginBottom: '1rem' }}>
-            <Scene landscapeData={(analysis as any) || []} />
+            <Canvas
+              shadows
+              camera={{ position: [300, 200, 150], fov: 20, far: 1500, near: 0.1, zoom: isMobile ? 0.5 : 1 }}
+              touch-action="none"
+            >
+              {/* Scene.tsx-style OrbitControls + Grid wired to ex-frontend stores */}
+              {/* mesh and orbit stores used to mirror Scene behavior */}
+              {/* meshRef and orbitRef will be set below */}
+              
+              <OrbitControls
+                ref={orbitRef}
+                minDistance={isMobile ? 120 : 40}
+                maxDistance={isMobile ? 700 : 600}
+                target={target}
+                minPolarAngle={0}
+                maxPolarAngle={Math.PI / 2}
+              />
+
+              <group>
+                <SoundScape ref={meshRef as any} lists={scaledLists as any} position={[0, 0, 0]} />
+                <Grid
+                  args={[164, 164]}
+                  cellSize={5}
+                  cellColor={gridColor}
+                  sectionSize={82}
+                  sectionColor={gridColor}
+                  fadeDistance={600}
+                  fadeStrength={1}
+                />
+              </group>
+
+              {/* highlight/progress lines on top */}
+              <AudioVisualizer
+                soundLinesVectors={soundLinesVectors as any}
+                currentTime={currentTime}
+                duration={duration || 1}
+              />
+
+              {/* OrbitControls already instantiated above */}
+            </Canvas>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '0.5rem' }}>
             <button
