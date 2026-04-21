@@ -67,3 +67,25 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 }))
 
+interface MeshState {
+  mesh: THREE.Mesh | null
+  setMesh: (mesh: THREE.Mesh | null) => void
+}
+
+export const useMeshStore = create<MeshState>((set) => ({
+  mesh: null,
+  setMesh: (mesh) => set({ mesh }),
+}))
+
+interface OrbitState {
+  cameraPos: [number, number, number]
+  target: [number, number, number]
+  setOrbit: (cameraPos: [number, number, number], target: [number, number, number]) => void
+}
+
+export const useOrbitStore = create<OrbitState>((set) => ({
+  cameraPos: [300, 200, 150],
+  target: [0, 0, 0],
+  setOrbit: (cameraPos, target) => set({ cameraPos, target }),
+}))
+

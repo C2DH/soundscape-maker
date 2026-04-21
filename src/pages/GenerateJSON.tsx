@@ -5,14 +5,12 @@ import { Canvas } from '@react-three/fiber'
 import { Grid, OrbitControls } from '@react-three/drei'
 import { Mesh } from 'three'
 
-// ex-frontend stores (use Scene.tsx as reference)
-import { useThemeStore as exUseThemeStore, useMeshStore as exUseMeshStore, useOrbitStore as exUseOrbitStore } from '../../ex-frontend/src/store'
-
 // lightweight mobile check (avoids adding `react-device-detect` dependency)
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent)
 import AudioInput from '../components/AudioInput'
 import AudioVisualizer from '../components/AudioVisualizer'
 import SoundScape from '../components/SoundScape'
+import { useThemeStore, useMeshStore, useOrbitStore } from '../store'
  
 
 async function analyseAudioFile(
@@ -247,14 +245,14 @@ export default function GenerateJSON() {
   const lightY = baseLightOffset + modelHeight * 2 + amplifyFactor * 20
   const lightXOffset = Math.max(20, modelHeight * 2)
 
-  // Scene refs and ex-frontend store wiring (copying Scene.tsx behavior)
+  // Scene refs and orbit store wiring (copying Scene.tsx behavior)
   const meshRef = useRef<Mesh | null>(null)
   const orbitRef = useRef<any>(null)
-  const setMesh = exUseMeshStore((s) => s.setMesh)
-  const setOrbit = exUseOrbitStore((s) => s.setOrbit)
-  const cameraPos = exUseOrbitStore((s) => s.cameraPos)
-  const target = exUseOrbitStore((s) => s.target)
-  const gridColor = exUseThemeStore((s) => s.colors['--light'])
+  const setMesh = useMeshStore((s) => s.setMesh)
+  const setOrbit = useOrbitStore((s) => s.setOrbit)
+  const cameraPos = useOrbitStore((s) => s.cameraPos)
+  const target = useOrbitStore((s) => s.target)
+  const gridColor = useThemeStore((s) => s.colors['--light'])
 
   useEffect(() => {
     if (meshRef.current) {
@@ -338,7 +336,7 @@ export default function GenerateJSON() {
               camera={{ position: [300, 200, 150], fov: 20, far: 1500, near: 0.1, zoom: isMobile ? 0.5 : 1 }}
               touch-action="none"
             >
-              {/* Scene.tsx-style OrbitControls + Grid wired to ex-frontend stores */}
+              {/* Scene.tsx-style OrbitControls + Grid wired to stores */}
               {/* mesh and orbit stores used to mirror Scene behavior */}
               {/* meshRef and orbitRef will be set below */}
               
