@@ -1,45 +1,48 @@
-import appTemplate from '../../package/src/App.jsx?raw'
+import appTemplate from '../../package/src/App.tsx?raw'
 import indexTemplate from '../../package/index.html?raw'
 import packageReadmeTemplate from '../../package/README.md?raw'
 import packageJsonTemplate from '../../package/package.json?raw'
-import mainTemplate from '../../package/src/main.jsx?raw'
+import tsconfigTemplate from '../../package/tsconfig.json?raw'
+import mainTemplate from '../../package/src/main.tsx?raw'
 import stylesTemplate from '../../package/src/styles.css?raw'
 
 // ─── HOW TO SHARE A COMPONENT FROM src/ INTO THE EXPORTED PACKAGE ───────────
 //
-// During development in package/, you can import components from the parent
-// app using the @main alias (points to ../src via package/vite.config.js).
+// Example: sharing SoundScape (and its dependencies) with the package template.
 //
-//   import SoundScape from '@main/components/SoundScape'
+// ── STEP 1 — Use it in the template app during development ───────────────────
 //
-// But exported ZIPs are standalone — ../src won't exist there. You must copy
-// the component and all its local dependencies into the ZIP here.
+//   In  package/src/App.jsx:
 //
-// Example: sharing SoundScape
+//     import SoundScape from '@main/components/SoundScape'
 //
-// Step 1 — add raw imports for every file the component needs:
+//   That's all you need while developing. No changes here yet.
 //
-//   import soundScapeTemplate   from '../../src/components/SoundScape.tsx?raw'
-//   import storeTemplate        from '../../src/store.ts?raw'
-//   import easingTemplate       from '../../src/easing.ts?raw'
-//   import vertexGlsl           from '../../src/shaders/soundscape/vertex.glsl?raw'
-//   import fragmentGlsl         from '../../src/shaders/soundscape/fragment.glsl?raw'
+// ── STEP 2 — Register it here so it gets copied into exported ZIPs ───────────
 //
-// Step 2 — add each file to the return array of getPackageTemplateFiles():
+//   In  src/utils/packageTemplate.ts  (this file), add ?raw imports at the top:
 //
-//   { path: 'src/components/SoundScape.tsx',              content: soundScapeTemplate },
-//   { path: 'src/store.ts',                               content: storeTemplate },
-//   { path: 'src/easing.ts',                              content: easingTemplate },
-//   { path: 'src/shaders/soundscape/vertex.glsl',         content: vertexGlsl },
-//   { path: 'src/shaders/soundscape/fragment.glsl',       content: fragmentGlsl },
+//     import soundScapeTemplate from '../components/SoundScape.tsx?raw'
+//     import storeTemplate      from '../store.ts?raw'
+//     import easingTemplate     from '../easing.ts?raw'
+//     import vertexGlsl         from '../shaders/soundscape/vertex.glsl?raw'
+//     import fragmentGlsl       from '../shaders/soundscape/fragment.glsl?raw'
 //
-// Step 3 — the exported vite.config already maps @main → ./src, so the import
-//   paths in the component source resolve correctly inside the ZIP without any
-//   changes to the component file itself.
+//   Then add each entry to the return array of getPackageTemplateFiles() below:
 //
-// Step 4 — validate:
-//   1. cd package && npm run dev          (dev alias path works)
-//   2. Export ZIP, unzip, npm install, npm run dev   (standalone path works)
+//     { path: 'src/components/SoundScape.tsx',        content: soundScapeTemplate },
+//     { path: 'src/store.ts',                         content: storeTemplate },
+//     { path: 'src/easing.ts',                        content: easingTemplate },
+//     { path: 'src/shaders/soundscape/vertex.glsl',   content: vertexGlsl },
+//     { path: 'src/shaders/soundscape/fragment.glsl', content: fragmentGlsl },
+//
+//   The exported vite.config maps @main → ./src inside the ZIP, so component
+//   imports resolve correctly without any changes to the component source.
+//
+// ── STEP 3 — Validate both contexts ──────────────────────────────────────────
+//
+//   1. cd package && npm run dev                         ← dev alias works
+//   2. Export ZIP → unzip → npm install → npm run dev   ← standalone works
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -78,11 +81,12 @@ export function getPackageTemplateFiles(
     { path: 'README.md', content: packageReadmeTemplate },
     { path: 'index.html', content: indexTemplate },
     { path: 'package.json', content: packageJsonTemplate },
+    { path: 'tsconfig.json', content: tsconfigTemplate },
     { path: 'vite.config.js', content: exportedViteConfig },
-    { path: 'src/main.jsx', content: mainTemplate },
+    { path: 'src/main.tsx', content: mainTemplate },
     { path: 'src/styles.css', content: stylesTemplate },
     {
-      path: 'src/App.jsx',
+      path: 'src/App.tsx',
       content: replaceTemplateTokens(appTemplate, tokens),
     },
   ]
