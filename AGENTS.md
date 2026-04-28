@@ -2,6 +2,19 @@
 
 This file defines coding preferences for this workspace.
 
+## Repository Structure Note
+
+This repository currently contains two app contexts:
+
+- Main app in `src/`: the Soundscape Maker UI used to analyze audio and create exports.
+- Package template app in `package/`: a React template copied into exported ZIP packages.
+
+When making changes, keep responsibilities separated:
+
+- Product/runtime features belong to `src/`.
+- Exported app template assets and behavior belong to `package/`.
+- If packaging behavior changes, update both exporter utilities and matching template expectations.
+
 ## Component Rules
 
 - Always create new UI components as TypeScript React files: `.tsx`.
