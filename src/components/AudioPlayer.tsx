@@ -1,23 +1,20 @@
-// AudioPlayer.tsx
-import React, { useEffect, useRef, useState } from 'react'
-import AudioControlsProgress from './AudioControlProgress'
-import { useAudioStore } from '../store'
+import { useEffect, useRef, useState } from 'react'
 
 interface AudioPlayerProps {
   src: string
   seek: number
   debugMode?: boolean
+  onTimeUpdate?: (time: number) => void
 }
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({
   src,
   seek,
   debugMode = true,
+  onTimeUpdate,
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const setCurrentTime = useAudioStore((s) => s.setCurrentTime)
-
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.currentTime = seek
@@ -44,8 +41,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const handleTimeUpdate = () => {
     if (debugMode && audioRef.current) {
-      console.debug('Audio current time:', audioRef.current.currentTime)
-      setCurrentTime(audioRef.current.currentTime)
+      const time = audioRef.current.currentTime
+      console.debug('Audio current time:', time)
+      if (onTimeUpdate) {
+        onTimeUpdate(time)
+      }
     }
   }
   return (
@@ -59,7 +59,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       <button onClick={isPlaying ? handlePause : handlePlay}>
         {isPlaying ? 'Pause' : 'Play'}
       </button>
-      <AudioControlsProgress />
     </div>
   )
 }

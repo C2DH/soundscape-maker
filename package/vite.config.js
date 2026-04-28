@@ -15,6 +15,9 @@ export default defineConfig({
       '@main': path.resolve(__dirname, '../src'),
     },
   },
+  optimizeDeps: {
+    exclude: ['@main'],
+  },
   server: {
     fs: {
       allow: ['..'],

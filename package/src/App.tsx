@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import AudioPlayer from '@main/components/AudioPlayer'
+// import AudioPlayer from '@main/components/AudioPlayer'
+import { useAudioStore } from './store'
+
 // These constants hold relative paths to the packaged assets.
 // In development (npm run dev inside package/), values come from .env.
 // At export time, the packaging tool replaces the token strings directly
@@ -23,6 +25,7 @@ function App() {
   const [status, setStatus] = useState('Loading package files...')
   const [metadata, setMetadata] = useState<PackageMetadata | null>(null)
   const [pointCount, setPointCount] = useState(0)
+  // const setCurrentTime = useAudioStore((s) => s.setCurrentTime)
 
   useEffect(() => {
     let active = true
@@ -74,7 +77,8 @@ function App() {
       <h1>Soundscape Package</h1>
       <p className='status'>Status: {status}</p>
 
-      <AudioPlayer src={AUDIO_PATH} seek={0} />
+      {/* <AudioPlayer src={AUDIO_PATH} seek={0} onTimeUpdate={setCurrentTime} /> */}
+
       {summary && (
         <section className='summary'>
           <h2>Generated Data</h2>
