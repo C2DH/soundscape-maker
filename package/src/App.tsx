@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+// import AudioPlayer from '@main/components/AudioPlayer'
+import { useAudioStore } from './store'
 
 // These constants hold relative paths to the packaged assets.
 // In development (npm run dev inside package/), values come from .env.
@@ -10,10 +12,20 @@ const DATA_PATH = import.meta.env.VITE_SOUNDSCAPE_DATA ?? '__SOUNDSCAPE_DATA__'
 const METADATA_PATH =
   import.meta.env.VITE_SOUNDSCAPE_METADATA ?? '__SOUNDSCAPE_METADATA__'
 
+interface PackageMetadata {
+  sourceFileName: string
+  exportedAudioPath: string
+  duration: number
+  chunkCount: number
+  binCount: number
+  generatedAt: string
+}
+
 function App() {
   const [status, setStatus] = useState('Loading package files...')
-  const [metadata, setMetadata] = useState(null)
+  const [metadata, setMetadata] = useState<PackageMetadata | null>(null)
   const [pointCount, setPointCount] = useState(0)
+  // const setCurrentTime = useAudioStore((s) => s.setCurrentTime)
 
   useEffect(() => {
     let active = true
@@ -29,8 +41,8 @@ function App() {
           throw new Error('Failed to fetch package data files')
         }
 
-        const metadataJson = await metadataResponse.json()
-        const soundscapeData = await dataResponse.json()
+        const metadataJson: PackageMetadata = await metadataResponse.json()
+        const soundscapeData: number[][] = await dataResponse.json()
 
         if (!active) return
 
@@ -53,13 +65,10 @@ function App() {
   const summary = useMemo(() => {
     if (!metadata) return null
     return {
-      duration:
-        typeof metadata.duration === 'number'
-          ? metadata.duration.toFixed(2)
-          : 'n/a',
-      chunks: metadata.chunkCount ?? 'n/a',
-      bins: metadata.binCount ?? 'n/a',
-      sourceName: metadata.sourceFileName ?? 'n/a',
+      duration: metadata.duration.toFixed(2),
+      chunks: metadata.chunkCount,
+      bins: metadata.binCount,
+      sourceName: metadata.sourceFileName,
     }
   }, [metadata])
 
@@ -68,9 +77,7 @@ function App() {
       <h1>Soundscape Package</h1>
       <p className='status'>Status: {status}</p>
 
-      <audio controls src={AUDIO_PATH} className='audio-player'>
-        Your browser does not support audio playback.
-      </audio>
+      {/* <AudioPlayer src={AUDIO_PATH} seek={0} onTimeUpdate={setCurrentTime} /> */}
 
       {summary && (
         <section className='summary'>

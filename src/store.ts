@@ -80,7 +80,10 @@ export const useMeshStore = create<MeshState>((set) => ({
 interface OrbitState {
   cameraPos: [number, number, number]
   target: [number, number, number]
-  setOrbit: (cameraPos: [number, number, number], target: [number, number, number]) => void
+  setOrbit: (
+    cameraPos: [number, number, number],
+    target: [number, number, number],
+  ) => void
 }
 
 export const useOrbitStore = create<OrbitState>((set) => ({
@@ -89,3 +92,18 @@ export const useOrbitStore = create<OrbitState>((set) => ({
   setOrbit: (cameraPos, target) => set({ cameraPos, target }),
 }))
 
+interface AudioState {
+  currentTime: number
+  duration: number
+  setCurrentTime: (time: number) => void
+  setDuration: (duration: number) => void
+  setCurrentTimeAndDuration: (time: number, duration: number) => void
+}
+export const useAudioStore = create<AudioState>((set) => ({
+  currentTime: 0,
+  duration: 0,
+  setCurrentTime: (time) => set({ currentTime: time }),
+  setDuration: (duration) => set({ duration }),
+  setCurrentTimeAndDuration: (time, duration) =>
+    set({ currentTime: time, duration }),
+}))
