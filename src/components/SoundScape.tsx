@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react'
+import { useMemo, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react'
 import * as THREE from 'three'
 import vertexSoundScape from '../shaders/soundscape/vertex.glsl?raw'
 import fragmentSoundScape from '../shaders/soundscape/fragment.glsl?raw'
@@ -8,9 +8,11 @@ import { useThemeStore } from '../store'
 export type SoundScapeProps = {
   lists: number[][]
   position?: [number, number, number]
+  onHover?: (hoverIndex: number | null, hoverTime: number | null) => void
+  onClick?: (clickIndex: number, clickTime: number) => void
 }
 
-const SoundScape = forwardRef<THREE.Mesh, SoundScapeProps>(({ lists, position = [0, 0, 0] }, ref) => {
+const SoundScape = forwardRef<THREE.Mesh, SoundScapeProps>(({ lists, position = [0, 0, 0], onHover, onClick }, ref) => {
   const meshRef = useRef<THREE.Mesh>(null)
   const materialRef = useRef<THREE.ShaderMaterial>(null!)
   const [bbox, setBbox] = useState({
@@ -18,12 +20,38 @@ const SoundScape = forwardRef<THREE.Mesh, SoundScapeProps>(({ lists, position = 
     max: new THREE.Vector3(),
   })
   const colors = useThemeStore((s) => s.colors)
-  const { camera } = useThree()
+  const { camera, raycaster, pointer } = useThree()
+  const raycasterRef = useRef(new THREE.Raycaster())
+  const geometryMetaRef = useRef({ timeLength: 0, listLength: 0 })
+  const lastHoverIndexRef = useRef<number | null>(null)
+  const isPointerOverMeshRef = useRef(false)
+
+  const handleMeshClick = useCallback(
+    (event: any) => {
+      const point = event.point
+      const { timeLength, listLength } = geometryMetaRef.current
+
+      if (timeLength > 0) {
+        const zCenter = timeLength / 2
+        const zNorm = (point.z + zCenter) / timeLength
+        const clickIndex = Math.round(zNorm * (timeLength - 1))
+        const clickTime = (clickIndex / Math.max(1, timeLength - 1)) * lists.length
+
+        if (onClick) {
+          onClick(clickIndex, clickTime)
+        }
+      }
+    },
+    [lists.length, onClick],
+  )
 
   // build geometry once when lists change
   const geometry = useMemo(() => {
     const timeLength = lists.length
     const listLength = lists[0]?.length ?? 0
+
+    // Store metadata for raycasting
+    geometryMetaRef.current = { timeLength, listLength }
 
     const vertices: number[] = []
     const indices: number[] = []
@@ -82,18 +110,55 @@ const SoundScape = forwardRef<THREE.Mesh, SoundScapeProps>(({ lists, position = 
     if (materialRef.current) {
       materialRef.current.uniforms.uCameraPosition.value.copy(camera.position)
     }
+
+    // Raycasting for hover (visual only, no seeking)
+    if (meshRef.current) {
+      raycasterRef.current.setFromCamera(pointer, camera)
+      const intersects = raycasterRef.current.intersectObject(meshRef.current)
+
+      if (intersects.length > 0) {
+        isPointerOverMeshRef.current = true
+        const point = intersects[0].point
+        const { timeLength, listLength } = geometryMetaRef.current
+
+        if (timeLength > 0) {
+          const zCenter = timeLength / 2
+          const zNorm = (point.z + zCenter) / timeLength
+          const hoverIndex = Math.round(zNorm * (timeLength - 1))
+          
+          // Only trigger callback if hover index changed
+          if (hoverIndex !== lastHoverIndexRef.current) {
+            lastHoverIndexRef.current = hoverIndex
+            const hoverTime = (hoverIndex / Math.max(1, timeLength - 1)) * lists.length
+
+            if (onHover) {
+              onHover(hoverIndex, hoverTime)
+            }
+          }
+        }
+      } else {
+        isPointerOverMeshRef.current = false
+        // Clear hover when mouse leaves mesh
+        if (lastHoverIndexRef.current !== null) {
+          lastHoverIndexRef.current = null
+          if (onHover) {
+            onHover(null, null)
+          }
+        }
+      }
+    }
   })
 
   if (lists.length === 0) return null
 
   return (
-    <mesh geometry={geometry} ref={meshRef} position={position}>
+    <mesh geometry={geometry} ref={meshRef} position={position} onClick={handleMeshClick}>
       <shaderMaterial
         ref={materialRef}
         vertexShader={vertexSoundScape}
         fragmentShader={fragmentSoundScape}
         uniforms={{
-          color1: { value: new THREE.Color(colors['--dark']) },
+          color1: { value: new THREE.Color('rgb(86, 21, 119)') },
           // override pink accent with a more purple tone
           color2: { value: new THREE.Color('rgb(150,50,200)') },
           uBboxMin: { value: bbox.min },
