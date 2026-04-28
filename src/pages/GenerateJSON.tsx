@@ -229,7 +229,7 @@ export default function GenerateJSON() {
       
       setCurrentTime(audioRef.current.currentTime)
     }
-  }, [analysis?.length, duration])
+  }, [analysis?.length, duration, reverseOutput])
 
   useEffect(() => {
     let frameId: number
@@ -314,7 +314,7 @@ export default function GenerateJSON() {
       return { soundLinesVectors: vectors, scaledLists: scaled }
     }
     
-  }, [amplifyFactor, analysis])
+  }, [amplifyFactor, analysis, reverseOutput])
 
   return (
     <main className='app-root'>
@@ -417,6 +417,15 @@ export default function GenerateJSON() {
               }
             >
               {isExporting ? 'Exporting...' : 'Export'}
+            </button>
+            <button
+              type='button'
+              onClick={() => setReverseOutput((prev) => !prev)}
+              disabled={
+                !analysis || !selectedFile || duration === null || isExporting
+              }
+            >
+              {reverseOutput ? 'Make right to left' : 'Make left to right'}
             </button>
           </div>
 
