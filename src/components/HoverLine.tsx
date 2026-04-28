@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { use, useEffect, useState } from 'react'
 import * as THREE from 'three'
 import SoundLine from './SoundLine'
 
@@ -6,6 +6,7 @@ export interface HoverLineProps {
   soundLinesVectors: THREE.Vector3[][]
   hoverIndex: number | null
   duration: number
+  reverseOutput: boolean
 }
 
 /**
@@ -16,19 +17,32 @@ const HoverLine: React.FC<HoverLineProps> = ({
   soundLinesVectors,
   hoverIndex,
   duration,
+  reverseOutput
 }) => {
   // Only show hover line if hovering
   if (hoverIndex === null || hoverIndex === undefined) {
     return null
   }
 
+  const [safeHoverIndex, setSafeHoverIndex] = useState<number>(0)
+
+  useEffect(() => {
+    setSafeHoverIndex(Math.max(0, Math.min(hoverIndex, soundLinesVectors.length - 1)))
+  }, [hoverIndex])
+
   const totalLinesCount = soundLinesVectors.length
-  const safeHoverIndex = Math.max(0, Math.min(hoverIndex, totalLinesCount - 1))
+  useEffect(() => {
+    if (reverseOutput===true){
+      setSafeHoverIndex(totalLinesCount - Math.max(0, Math.min(hoverIndex, totalLinesCount - 1)))
+    }
+    else{
+      setSafeHoverIndex(Math.max(0, Math.min(hoverIndex, totalLinesCount - 1)))
+    }
+  }, [reverseOutput, hoverIndex, totalLinesCount])
   const displayTime =
     totalLinesCount > 1
       ? (safeHoverIndex / (totalLinesCount - 1)) * duration
       : 0
-
   return (
     <SoundLine
       points={soundLinesVectors[safeHoverIndex] || []}

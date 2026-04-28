@@ -18,6 +18,7 @@ export interface SoundscapePreviewProps {
   currentTime: number
   duration: number
   onSeek: (clickTime: number) => void
+  reverseOutput: boolean
 }
 
 export function SoundscapePreview({
@@ -26,6 +27,7 @@ export function SoundscapePreview({
   currentTime,
   duration,
   onSeek,
+  reverseOutput
 }: SoundscapePreviewProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const meshRef = useRef<Mesh | null>(null)
@@ -114,6 +116,7 @@ export function SoundscapePreview({
           soundLinesVectors={soundLinesVectors}
           hoverIndex={hoverIndex}
           duration={duration}
+          reverseOutput={reverseOutput}
         />
       </Canvas>
     </div>

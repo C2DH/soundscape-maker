@@ -130,6 +130,7 @@ function amplifyArray(arr: number[], factor = 1) {
 
 export default function GenerateJSON() {
   const [outputJson, setOutputJson] = useState<string>('')
+  const [reverseOutput, setReverseOutput] = useState<boolean>(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<number[][] | null>(null)
@@ -219,7 +220,13 @@ export default function GenerateJSON() {
   const handleSeek = useCallback((clickTime: number) => {
     if (audioRef.current && duration) {
       const seekTime = (clickTime / (analysis?.length || 1)) * duration
-      audioRef.current.currentTime = Math.max(0, Math.min(seekTime, duration))
+      if (reverseOutput === true){
+        audioRef.current.currentTime = duration-Math.max(0, Math.min(seekTime, duration))
+      }
+      else{
+        audioRef.current.currentTime = Math.max(0, Math.min(seekTime, duration))
+      }
+      
       setCurrentTime(audioRef.current.currentTime)
     }
   }, [analysis?.length, duration])
@@ -273,9 +280,18 @@ export default function GenerateJSON() {
         scaledLists: [] as number[][],
       }
     // optionally amplify values; larger amplifyFactor should yield a taller model
-    const amplified = analysis.map((row) =>
-      row.map((y) => Math.pow(y, amplifyFactor)),
-    )
+    let tempAmplified = null;
+    if (reverseOutput === true){
+      tempAmplified = analysis.map((row) =>
+        row.map((y) => Math.pow(y, amplifyFactor)),
+      ).reverse()
+    }
+    else{
+      tempAmplified = analysis.map((row) =>
+        row.map((y) => Math.pow(y, amplifyFactor)),
+      )
+    }
+    const amplified = tempAmplified;
     // instead of normalizing to a constant height, simply multiply by an overall
     // constant so that increasing amplifyFactor makes the mesh visibly larger
     const baseHeight = 3 // adjust if the mesh is too tall/short
@@ -291,7 +307,13 @@ export default function GenerateJSON() {
           ),
       ),
     )
-    return { soundLinesVectors: vectors, scaledLists: scaled }
+    if (reverseOutput === true){
+      return { soundLinesVectors: vectors.reverse(), scaledLists: scaled }
+    }
+    else{
+      return { soundLinesVectors: vectors, scaledLists: scaled }
+    }
+    
   }, [amplifyFactor, analysis])
 
   return (
@@ -377,6 +399,7 @@ export default function GenerateJSON() {
             currentTime={currentTime}
             duration={duration || 1}
             onSeek={handleSeek}
+            reverseOutput={reverseOutput}
           />
           <div
             style={{
