@@ -1,22 +1,20 @@
-import { useEffect, useState } from 'react'
+import { Route, Routes } from 'react-router'
+
 import './App.css'
 import Home from './pages/Home'
 import GenerateJSON from './pages/GenerateJSON'
+import { Footer } from './components/Footer'
 
-function App() {
-  const [route, setRoute] = useState(window.location.pathname)
-
-  useEffect(() => {
-    const onPop = () => setRoute(window.location.pathname)
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
-
-  if (route === '/' || route === '') return <Home />
-  if (route === '/generatejson') return <GenerateJSON />
-
-  // fallback: render Home
-  return <Home />
+const App: React.FC = () => {
+  return (
+    <div className='App'>
+      <Routes>
+        <Route index element={<Home />} />
+        <Route path='/generatejson' element={<GenerateJSON />} />
+      </Routes>
+      <Footer />
+    </div>
+  )
 }
 
 export default App
