@@ -15,6 +15,15 @@ When making changes, keep responsibilities separated:
 - Exported app template assets and behavior belong to `package/`.
 - If packaging behavior changes, update both exporter utilities and matching template expectations.
 
+### Package Development and Sharing Rules
+
+- In `package/` development mode, importing shared code from the parent app is allowed via `@main` (alias to `../src` in `package/vite.config.js`).
+- Do not rely on parent-folder imports for exported ZIP runtime; exported packages must run standalone.
+- If `package/src/*` uses a shared component from `@main`, ensure the packaging pipeline copies that component and required dependencies into exported package sources (through `src/utils/packageTemplate.ts` or equivalent exporter mapping).
+- After introducing a shared component, validate both contexts:
+  1. `cd package && npm run dev` (template development works)
+  2. Export ZIP and run the unzipped package app (standalone package works)
+
 ## Component Rules
 
 - Always create new UI components as TypeScript React files: `.tsx`.

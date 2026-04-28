@@ -53,6 +53,40 @@ This repository contains a second app template under `package/`. It is used as t
 - The exporter performs token replacement where needed (currently in `package/src/App.jsx`) to wire relative paths for audio and JSON files.
 - After unzipping an exported package, run `npm install` and `npm run dev` inside the unzipped folder to run the packaged React app.
 
+### Package Development Mode (with local demo assets)
+
+For package UI/theme development, the template app supports local demo assets directly in:
+
+- `package/audio/`
+- `package/data/`
+
+Run the template app locally:
+
+1. `cd package`
+2. `npm install`
+3. `npm run dev`
+
+In development mode, `package/src/App.jsx` reads paths from `.env` (`VITE_SOUNDSCAPE_*`).
+During ZIP export, those token fallbacks are replaced by real generated paths, and `.env` is not included in the archive.
+
+### Sharing components from parent `src/`
+
+The template app can import from the main app during development through the `@main` alias (configured in `package/vite.config.js`, pointing to `../src`).
+
+Example import:
+
+```js
+import AudioVisualizer from '@main/components/AudioVisualizer'
+```
+
+Important: parent-folder imports are for local development. Exported ZIPs are standalone, so any shared component used by the template must also be copied into the exported package source by the packaging layer (`src/utils/packageTemplate.ts`).
+
+Reminder to share a component safely:
+
+1. Import it via `@main/...` while developing in `package/`.
+2. Add the component (and its needed dependencies) to exported template files in `src/utils/packageTemplate.ts`.
+3. Export a ZIP and run the packaged app to verify the component resolves without parent-folder references.
+
 - current demo package hosts Music by <a href="https://pixabay.com/users/sound_garage-47313534/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=382957">SOUND_GARAGE</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=382957">Pixabay</a>, only for development purposes.
 
 ### How to run the website:
