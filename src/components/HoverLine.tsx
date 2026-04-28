@@ -1,12 +1,10 @@
 import React from 'react'
 import * as THREE from 'three'
 import SoundLine from './SoundLine'
-import { useThemeStore } from '../store'
 
 export interface HoverLineProps {
   soundLinesVectors: THREE.Vector3[][]
   hoverIndex: number | null
-  hoverTime: number | null
   duration: number
 }
 
@@ -17,11 +15,8 @@ export interface HoverLineProps {
 const HoverLine: React.FC<HoverLineProps> = ({
   soundLinesVectors,
   hoverIndex,
-  hoverTime,
   duration,
 }) => {
-  const colors = useThemeStore((s) => s.colors)
-
   // Only show hover line if hovering
   if (hoverIndex === null || hoverIndex === undefined) {
     return null
@@ -29,7 +24,10 @@ const HoverLine: React.FC<HoverLineProps> = ({
 
   const totalLinesCount = soundLinesVectors.length
   const safeHoverIndex = Math.max(0, Math.min(hoverIndex, totalLinesCount - 1))
-  const displayTime = hoverTime ?? 0
+  const displayTime =
+    totalLinesCount > 1
+      ? (safeHoverIndex / (totalLinesCount - 1)) * duration
+      : 0
 
   return (
     <SoundLine
