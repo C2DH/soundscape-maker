@@ -10,6 +10,7 @@ const isMobile =
   typeof navigator !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent)
 import AudioInput from '../components/AudioInput'
 import AudioVisualizer from '../components/AudioVisualizer'
+import HoverLine from '../components/HoverLine'
 import SoundScape from '../components/SoundScape'
 import { useThemeStore, useMeshStore, useOrbitStore } from '../store'
 import { buildAndDownloadSoundscapePackage } from '../utils/packageBuilder'
@@ -137,6 +138,8 @@ export default function GenerateJSON() {
   const [isExporting, setIsExporting] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
+  const [hoverTime, setHoverTime] = useState<number | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const handleAudioSelected = (file: File) => {
@@ -209,6 +212,19 @@ export default function GenerateJSON() {
     } else {
       audioRef.current.play()
       setIsPlaying(true)
+    }
+  }
+
+  const handleMeshHover = (newHoverIndex: number | null, newHoverTime: number | null) => {
+    setHoverIndex(newHoverIndex)
+    setHoverTime(newHoverTime)
+  }
+
+  const handleMeshClick = (_clickIndex: number, clickTime: number) => {
+    if (audioRef.current && duration) {
+      const seekTime = (clickTime / (analysis?.length || 1)) * duration
+      audioRef.current.currentTime = Math.max(0, Math.min(seekTime, duration))
+      setCurrentTime(audioRef.current.currentTime)
     }
   }
 
@@ -414,6 +430,8 @@ export default function GenerateJSON() {
                   ref={meshRef as any}
                   lists={scaledLists as any}
                   position={[0, 0, 0]}
+                  onHover={handleMeshHover}
+                  onClick={handleMeshClick}
                 />
                 <Grid
                   args={[164, 164]}
@@ -432,8 +450,12 @@ export default function GenerateJSON() {
                 currentTime={currentTime}
                 duration={duration || 1}
               />
-
-              {/* OrbitControls already instantiated above */}
+              <HoverLine
+                soundLinesVectors={soundLinesVectors as any}
+                hoverIndex={hoverIndex}
+                hoverTime={hoverTime}
+                duration={duration || 1}
+              />
             </Canvas>
           </div>
           <div
