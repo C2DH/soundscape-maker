@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-
+import AudioPlayer from '@main/components/AudioPlayer'
 // These constants hold relative paths to the packaged assets.
 // In development (npm run dev inside package/), values come from .env.
 // At export time, the packaging tool replaces the token strings directly
@@ -74,10 +74,7 @@ function App() {
       <h1>Soundscape Package</h1>
       <p className='status'>Status: {status}</p>
 
-      <audio controls src={AUDIO_PATH} className='audio-player'>
-        Your browser does not support audio playback.
-      </audio>
-
+      <AudioPlayer src={AUDIO_PATH} seek={0} />
       {summary && (
         <section className='summary'>
           <h2>Generated Data</h2>
