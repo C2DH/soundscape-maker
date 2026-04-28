@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router'
 import './App.css'
 import Home from './pages/Home'
 import GenerateJSON from './pages/GenerateJSON'
+import { Footer } from './components/Footer'
 
 const App: React.FC = () => {
   return (
@@ -11,6 +12,7 @@ const App: React.FC = () => {
         <Route index element={<Home />} />
         <Route path='/generatejson' element={<GenerateJSON />} />
       </Routes>
+      <Footer />
     </div>
   )
 }
