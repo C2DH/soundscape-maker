@@ -1,19 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import fft from 'fft-js'
 import * as THREE from 'three'
-import { Canvas } from '@react-three/fiber'
-import { Grid, OrbitControls } from '@react-three/drei'
-import { Mesh } from 'three'
-
-// lightweight mobile check (avoids adding `react-device-detect` dependency)
-const isMobile =
-  typeof navigator !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent)
 import AudioInput from '../components/AudioInput'
-import AudioVisualizer from '../components/AudioVisualizer'
-import HoverLine from '../components/HoverLine'
-import SoundScape from '../components/SoundScape'
-import { useThemeStore, useMeshStore, useOrbitStore } from '../store'
+import { SoundscapePreview } from '../components/SoundscapePreview'
 import { buildAndDownloadSoundscapePackage } from '../utils/packageBuilder'
+
+type AudioContextCtor = typeof AudioContext
+type OfflineAudioContextCtor = typeof OfflineAudioContext
+type AudioWindow = Window &
+  typeof globalThis & {
+    webkitAudioContext?: AudioContextCtor
+    webkitOfflineAudioContext?: OfflineAudioContextCtor
+  }
 
 async function analyseAudioFile(
   file: File,
@@ -24,7 +22,11 @@ async function analyseAudioFile(
 
   const arrayBuffer = await file.arrayBuffer()
 
-  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+  const audioWindow = window as AudioWindow
+  const AudioCtx = audioWindow.AudioContext || audioWindow.webkitAudioContext
+  if (!AudioCtx) {
+    throw new Error('AudioContext is not available in this browser.')
+  }
   const audioContext = new AudioCtx()
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
 
@@ -38,9 +40,10 @@ async function analyseAudioFile(
     audioBuffer.numberOfChannels !== targetChannels
   ) {
     const OfflineCtx =
-      (window as any).OfflineAudioContext ||
-      (window as any).webkitOfflineAudioContext ||
-      (window as any).OfflineAudioContext
+      audioWindow.OfflineAudioContext || audioWindow.webkitOfflineAudioContext
+    if (!OfflineCtx) {
+      throw new Error('OfflineAudioContext is not available in this browser.')
+    }
     const offlineCtx = new OfflineCtx(
       targetChannels,
       Math.ceil(audioBuffer.duration * targetSampleRate),
@@ -127,6 +130,7 @@ function amplifyArray(arr: number[], factor = 1) {
 
 export default function GenerateJSON() {
   const [outputJson, setOutputJson] = useState<string>('')
+  const [reverseOutput, setReverseOutput] = useState<boolean>(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<number[][] | null>(null)
@@ -138,8 +142,6 @@ export default function GenerateJSON() {
   const [isExporting, setIsExporting] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
-  const [hoverTime, setHoverTime] = useState<number | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const handleAudioSelected = (file: File) => {
@@ -215,18 +217,19 @@ export default function GenerateJSON() {
     }
   }
 
-  const handleMeshHover = (newHoverIndex: number | null, newHoverTime: number | null) => {
-    setHoverIndex(newHoverIndex)
-    setHoverTime(newHoverTime)
-  }
-
-  const handleMeshClick = (_clickIndex: number, clickTime: number) => {
+  const handleSeek = useCallback((clickTime: number) => {
     if (audioRef.current && duration) {
       const seekTime = (clickTime / (analysis?.length || 1)) * duration
-      audioRef.current.currentTime = Math.max(0, Math.min(seekTime, duration))
+      if (reverseOutput === true){
+        audioRef.current.currentTime = duration-Math.max(0, Math.min(seekTime, duration))
+      }
+      else{
+        audioRef.current.currentTime = Math.max(0, Math.min(seekTime, duration))
+      }
+      
       setCurrentTime(audioRef.current.currentTime)
     }
-  }
+  }, [analysis?.length, duration])
 
   useEffect(() => {
     let frameId: number
@@ -270,16 +273,25 @@ export default function GenerateJSON() {
   }
 
   // scale raw data to reasonable height and also produce vectors
-  const { soundLinesVectors, scaledLists } = (() => {
+  const { soundLinesVectors, scaledLists } = useMemo(() => {
     if (!analysis)
       return {
         soundLinesVectors: [] as THREE.Vector3[][],
         scaledLists: [] as number[][],
       }
     // optionally amplify values; larger amplifyFactor should yield a taller model
-    const amplified = analysis.map((row) =>
-      row.map((y) => Math.pow(y, amplifyFactor)),
-    )
+    let tempAmplified = null;
+    if (reverseOutput === true){
+      tempAmplified = analysis.map((row) =>
+        row.map((y) => Math.pow(y, amplifyFactor)),
+      ).reverse()
+    }
+    else{
+      tempAmplified = analysis.map((row) =>
+        row.map((y) => Math.pow(y, amplifyFactor)),
+      )
+    }
+    const amplified = tempAmplified;
     // instead of normalizing to a constant height, simply multiply by an overall
     // constant so that increasing amplifyFactor makes the mesh visibly larger
     const baseHeight = 3 // adjust if the mesh is too tall/short
@@ -295,32 +307,14 @@ export default function GenerateJSON() {
           ),
       ),
     )
-    return { soundLinesVectors: vectors, scaledLists: scaled }
-  })()
-
-  // Scene refs and orbit store wiring (copying Scene.tsx behavior)
-  const meshRef = useRef<Mesh | null>(null)
-  const orbitRef = useRef<any>(null)
-  const setMesh = useMeshStore((s) => s.setMesh)
-  const setOrbit = useOrbitStore((s) => s.setOrbit)
-  const target = useOrbitStore((s) => s.target)
-  const gridColor = useThemeStore((s) => s.colors['--light'])
-
-  useEffect(() => {
-    if (meshRef.current) {
-      setMesh(meshRef.current)
+    if (reverseOutput === true){
+      return { soundLinesVectors: vectors.reverse(), scaledLists: scaled }
     }
-  }, [meshRef.current])
-
-  useEffect(() => {
-    if (meshRef.current && orbitRef.current) {
-      const controls = orbitRef.current
-      setOrbit(
-        controls.object.position.toArray() as [number, number, number],
-        controls.target.toArray() as [number, number, number],
-      )
+    else{
+      return { soundLinesVectors: vectors, scaledLists: scaled }
     }
-  }, [meshRef.current, orbitRef.current])
+    
+  }, [amplifyFactor, analysis])
 
   return (
     <main className='app-root'>
@@ -399,65 +393,14 @@ export default function GenerateJSON() {
 
       {analysis && totalChunks > 0 && (
         <div className='visual-section'>
-          {/* 3D preview canvas */}
-          <div style={{ width: '100%', height: '400px', marginBottom: '1rem' }}>
-            <Canvas
-              shadows
-              camera={{
-                position: [300, 200, 150],
-                fov: 20,
-                far: 1500,
-                near: 0.1,
-                zoom: isMobile ? 0.5 : 1,
-              }}
-              touch-action='none'
-            >
-              {/* Scene.tsx-style OrbitControls + Grid wired to stores */}
-              {/* mesh and orbit stores used to mirror Scene behavior */}
-              {/* meshRef and orbitRef will be set below */}
-
-              <OrbitControls
-                ref={orbitRef}
-                minDistance={isMobile ? 120 : 40}
-                maxDistance={isMobile ? 700 : 600}
-                target={target}
-                minPolarAngle={0}
-                maxPolarAngle={Math.PI / 2}
-              />
-
-              <group>
-                <SoundScape
-                  ref={meshRef as any}
-                  lists={scaledLists as any}
-                  position={[0, 0, 0]}
-                  onHover={handleMeshHover}
-                  onClick={handleMeshClick}
-                />
-                <Grid
-                  args={[164, 164]}
-                  cellSize={5}
-                  cellColor={gridColor}
-                  sectionSize={82}
-                  sectionColor={gridColor}
-                  fadeDistance={600}
-                  fadeStrength={1}
-                />
-              </group>
-
-              {/* highlight/progress lines on top */}
-              <AudioVisualizer
-                soundLinesVectors={soundLinesVectors as any}
-                currentTime={currentTime}
-                duration={duration || 1}
-              />
-              <HoverLine
-                soundLinesVectors={soundLinesVectors as any}
-                hoverIndex={hoverIndex}
-                hoverTime={hoverTime}
-                duration={duration || 1}
-              />
-            </Canvas>
-          </div>
+          <SoundscapePreview
+            soundLinesVectors={soundLinesVectors}
+            scaledLists={scaledLists}
+            currentTime={currentTime}
+            duration={duration || 1}
+            onSeek={handleSeek}
+            reverseOutput={reverseOutput}
+          />
           <div
             style={{
               display: 'flex',
