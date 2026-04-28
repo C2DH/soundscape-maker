@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 
-const AUDIO_PATH = '__SOUNDSCAPE_AUDIO__'
-const DATA_PATH = '__SOUNDSCAPE_DATA__'
-const METADATA_PATH = '__SOUNDSCAPE_METADATA__'
+// These constants hold relative paths to the packaged assets.
+// In development (npm run dev inside package/), values come from .env.
+// At export time, the packaging tool replaces the token strings directly
+// in this file before bundling into the ZIP — .env is not included.
+const AUDIO_PATH =
+  import.meta.env.VITE_SOUNDSCAPE_AUDIO ?? '__SOUNDSCAPE_AUDIO__'
+const DATA_PATH = import.meta.env.VITE_SOUNDSCAPE_DATA ?? '__SOUNDSCAPE_DATA__'
+const METADATA_PATH =
+  import.meta.env.VITE_SOUNDSCAPE_METADATA ?? '__SOUNDSCAPE_METADATA__'
 
 function App() {
   const [status, setStatus] = useState('Loading package files...')

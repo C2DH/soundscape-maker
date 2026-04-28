@@ -53,6 +53,8 @@ This repository contains a second app template under `package/`. It is used as t
 - The exporter performs token replacement where needed (currently in `package/src/App.jsx`) to wire relative paths for audio and JSON files.
 - After unzipping an exported package, run `npm install` and `npm run dev` inside the unzipped folder to run the packaged React app.
 
+- current demo package hosts Music by <a href="https://pixabay.com/users/sound_garage-47313534/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=382957">SOUND_GARAGE</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=382957">Pixabay</a>, only for development purposes.
+
 ### How to run the website:
 
 1. Run `npm install`
