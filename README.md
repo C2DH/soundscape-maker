@@ -34,13 +34,26 @@ Drag & drop or choose an MP3 file via browser UI.
 The tool analyzes the audio, generates the landscape, displays an interactive 3D preview. Users can tweak variables to adjust the mapping and shape, then play the audio on top of the resulting soundscape.
 Users can make adjustments until satisfied with the soundscape.
 
-#### Export ZIP Package (Coming Soon - currently only preview):
+#### Export ZIP Package:
 
-Soundscape Maker allows you to download a ZIP containing:
+Soundscape Maker allows you to download an export package from the **Generate JSON** page using the **Export** button.
 
-- Your audio file.
-- The generated JSON landscape data.
-- A simple React app for visualization/playback.
+The ZIP includes:
+
+- Your uploaded audio file saved as a real file in `audio/`.
+- The generated landscape data in `data/soundscape.json`.
+- Export metadata in `data/metadata.json`.
+- A React app template (copied from the repository `package/` folder) that can load and play the exported assets.
+
+### Package Template Folder (`package/`)
+
+This repository contains a second app template under `package/`. It is used as the source for exported package files.
+
+- Edit files in `package/` to customize what gets shipped in exported ZIPs.
+- The exporter performs token replacement where needed (currently in `package/src/App.jsx`) to wire relative paths for audio and JSON files.
+- After unzipping an exported package, run `npm install` and `npm run dev` inside the unzipped folder to run the packaged React app.
+
+- current demo package hosts Music by <a href="https://pixabay.com/users/sound_garage-47313534/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=382957">SOUND_GARAGE</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=382957">Pixabay</a>, only for development purposes.
 
 ### How to run the website:
 
