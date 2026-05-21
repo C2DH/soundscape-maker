@@ -96,6 +96,19 @@
   z-index: 1;
 }
 
+.soundscape-fullscreen-playback {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  background: rgba(15, 15, 24, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: white;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 .soundscape-fullscreen-overlay canvas {
   width: 100% !important;
   height: 100% !important;

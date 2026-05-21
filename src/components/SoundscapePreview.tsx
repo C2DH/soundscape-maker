@@ -17,9 +17,11 @@ export interface SoundscapePreviewProps {
   scaledLists: number[][]
   zSpacing: number
   fullscreen?: boolean
+  isPlaying?: boolean
   currentTime: number
   duration: number
   onSeek: (clickTime: number) => void
+  onTogglePlayPause?: () => void
   reverseOutput: boolean
   leftTopColor: string
   leftBottomColor: string
@@ -36,9 +38,11 @@ export function SoundscapePreview({
   scaledLists,
   zSpacing,
   fullscreen = false,
+  isPlaying = false,
   currentTime,
   duration,
   onSeek,
+  onTogglePlayPause,
   reverseOutput,
   leftTopColor,
   leftBottomColor,
@@ -90,6 +94,15 @@ export function SoundscapePreview({
     <div
       className={fullscreen ? 'soundscape-fullscreen-overlay' : 'soundscape-preview'}
     >
+      {fullscreen && onTogglePlayPause && (
+        <button
+          type='button'
+          className='soundscape-fullscreen-playback'
+          onClick={onTogglePlayPause}
+        >
+          {isPlaying ? 'Pause' : 'Play'}
+        </button>
+      )}
       <Canvas
         shadows
         camera={{

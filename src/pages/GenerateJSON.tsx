@@ -195,10 +195,10 @@ export default function GenerateJSON() {
       reverseOutput: false,
     }),
     Appearance: folder({
-      leftTopColor: '#561577',
+      leftTopColor: '#aa00ff',
       leftBottomColor: '#2f0f45',
-      rightTopColor: '#9632c8',
-      rightBottomColor: '#5a1f7d',
+      rightTopColor: '#f20099',
+      rightBottomColor: '#5c1f7d',
       gradientLeftToRight: false,
     }),
     Overlays: folder({
@@ -439,9 +439,11 @@ export default function GenerateJSON() {
           scaledLists={scaledLists}
           zSpacing={zSpacing}
           fullscreen
+          isPlaying={isPlaying}
           currentTime={currentTime}
           duration={duration || 1}
           onSeek={handleSeek}
+          onTogglePlayPause={handlePlayPause}
           reverseOutput={reverseOutput}
           leftTopColor={leftTopColor}
           leftBottomColor={leftBottomColor}
@@ -513,9 +515,11 @@ export default function GenerateJSON() {
                 soundLinesVectors={soundLinesVectors}
                 scaledLists={scaledLists}
                 zSpacing={zSpacing}
+                isPlaying={isPlaying}
                 currentTime={currentTime}
                 duration={duration || 1}
                 onSeek={handleSeek}
+                onTogglePlayPause={handlePlayPause}
                 reverseOutput={reverseOutput}
                 leftTopColor={leftTopColor}
                 leftBottomColor={leftBottomColor}
