@@ -455,7 +455,7 @@ export default function GenerateJSON() {
       )}
       <Leva collapsed={false} oneLineLabels />
       <div className='app-content'>
-        <h1>Generate JSON</h1>
+        <h1>Generate Soundscape</h1>
         <p>
           Upload an audio file to generate JSON data and preview the resulting
           soundscape below.

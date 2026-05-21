@@ -2,7 +2,7 @@
 
 export default function Home() {
   const go = () => {
-    history.pushState(null, '', '/generatejson')
+    history.pushState(null, '', '/generatesoundscape')
     // dispatch a popstate so our App router notices
     window.dispatchEvent(new PopStateEvent('popstate'))
   }
