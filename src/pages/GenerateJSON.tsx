@@ -132,6 +132,13 @@ function amplifyArray(arr: number[], factor = 1) {
   return arr.map((value) => Math.pow(value, factor))
 }
 
+function blurActiveElement() {
+  const activeElement = document.activeElement
+  if (activeElement instanceof HTMLElement) {
+    activeElement.blur()
+  }
+}
+
 export default function GenerateJSON() {
   const [outputJson, setOutputJson] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -146,6 +153,7 @@ export default function GenerateJSON() {
   const [generatedNumChunks, setGeneratedNumChunks] = useState(
     STANDARD_NUM_CHUNKS,
   )
+  const [isFullscreenPreviewOpen, setIsFullscreenPreviewOpen] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [
     {
@@ -158,6 +166,9 @@ export default function GenerateJSON() {
       rightTopColor,
       rightBottomColor,
       gradientLeftToRight,
+      showPlaybackLine,
+      showPlayedLines,
+      showHoverLine,
     },
     setControls,
     getControls,
@@ -190,6 +201,11 @@ export default function GenerateJSON() {
       rightBottomColor: '#5a1f7d',
       gradientLeftToRight: false,
     }),
+    Overlays: folder({
+      showPlaybackLine: true,
+      showPlayedLines: true,
+      showHoverLine: true,
+    }),
   }))
 
   useControls('Soundscape Controls', {
@@ -206,6 +222,11 @@ export default function GenerateJSON() {
           rightTopColor: currentLeftTopColor,
           rightBottomColor: currentLeftBottomColor,
         })
+        blurActiveElement()
+      }),
+      toggleFullscreenView: button(() => {
+        setIsFullscreenPreviewOpen((current) => !current)
+        blurActiveElement()
       }),
     }),
   })
@@ -264,7 +285,7 @@ export default function GenerateJSON() {
     }
   }
 
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     if (!audioUrl) return
 
     if (!audioRef.current) {
@@ -282,7 +303,34 @@ export default function GenerateJSON() {
       audioRef.current.play()
       setIsPlaying(true)
     }
-  }
+  }, [audioUrl, isPlaying])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return
+
+      const target = event.target as HTMLElement | null
+      const tagName = target?.tagName
+      const isEditable =
+        target?.isContentEditable ||
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        tagName === 'BUTTON'
+
+      if (isEditable || !audioUrl || !analysis) {
+        return
+      }
+
+      event.preventDefault()
+      handlePlayPause()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [analysis, audioUrl, handlePlayPause])
 
   const handleSeek = useCallback((clickTime: number) => {
     if (audioRef.current && duration) {
@@ -385,96 +433,125 @@ export default function GenerateJSON() {
 
   return (
     <main className='app-root'>
+      {analysis && totalChunks > 0 && isFullscreenPreviewOpen && (
+        <SoundscapePreview
+          soundLinesVectors={soundLinesVectors}
+          scaledLists={scaledLists}
+          zSpacing={zSpacing}
+          fullscreen
+          currentTime={currentTime}
+          duration={duration || 1}
+          onSeek={handleSeek}
+          reverseOutput={reverseOutput}
+          leftTopColor={leftTopColor}
+          leftBottomColor={leftBottomColor}
+          rightTopColor={rightTopColor}
+          rightBottomColor={rightBottomColor}
+          gradientLeftToRight={gradientLeftToRight}
+          showPlaybackLine={showPlaybackLine}
+          showPlayedLines={showPlayedLines}
+          showHoverLine={showHoverLine}
+        />
+      )}
       <Leva collapsed={false} oneLineLabels />
-      <h1>Generate JSON</h1>
-      <p>
-        Upload an audio file to generate JSON data and preview the resulting
-        soundscape below.
-      </p>
+      <div className='app-content'>
+        <h1>Generate JSON</h1>
+        <p>
+          Upload an audio file to generate JSON data and preview the resulting
+          soundscape below.
+        </p>
 
-      <AudioInput onAudioSelected={handleAudioSelected} />
+        <AudioInput onAudioSelected={handleAudioSelected} />
 
-      <div
-        style={{
-          marginTop: '0.75rem',
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <strong>Selected file:</strong>{' '}
-          {selectedFile ? selectedFile.name : 'None'}
+        <div
+          className='audio-selection-row'
+          style={{
+            marginTop: '0.75rem',
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+          }}
+        >
+          <div>
+            <strong>Selected file:</strong>{' '}
+            {selectedFile ? selectedFile.name : 'None'}
+          </div>
+
+          <button
+            type='button'
+            onClick={handleGenerate}
+            disabled={!selectedFile || isProcessing}
+          >
+            Generate
+          </button>
         </div>
 
-        <button
-          type='button'
-          onClick={handleGenerate}
-          disabled={!selectedFile || isProcessing}
-        >
-          Generate
-        </button>
-      </div>
+        <div style={{ marginTop: '1rem' }}>
+          <button
+            type='button'
+            onClick={handlePlayPause}
+            disabled={!audioUrl || !analysis}
+          >
+            {isPlaying ? 'Pause' : 'Play'}
+          </button>
+          {duration !== null && (
+            <span style={{ marginLeft: '0.75rem', fontSize: '0.9rem' }}>
+              {currentTime.toFixed(1)}s / {duration.toFixed(1)}s
+            </span>
+          )}
+        </div>
 
-      <div style={{ marginTop: '1rem' }}>
-        <button
-          type='button'
-          onClick={handlePlayPause}
-          disabled={!audioUrl || !analysis}
-        >
-          {isPlaying ? 'Pause' : 'Play'}
-        </button>
-        {duration !== null && (
-          <span style={{ marginLeft: '0.75rem', fontSize: '0.9rem' }}>
-            {currentTime.toFixed(1)}s / {duration.toFixed(1)}s
-          </span>
+        {isProcessing && <p>Processing audio…</p>}
+        {error && <p>{error}</p>}
+
+        {analysis && totalChunks > 0 && (
+          <div className='visual-section'>
+            {!isFullscreenPreviewOpen && (
+              <SoundscapePreview
+                soundLinesVectors={soundLinesVectors}
+                scaledLists={scaledLists}
+                zSpacing={zSpacing}
+                currentTime={currentTime}
+                duration={duration || 1}
+                onSeek={handleSeek}
+                reverseOutput={reverseOutput}
+                leftTopColor={leftTopColor}
+                leftBottomColor={leftBottomColor}
+                rightTopColor={rightTopColor}
+                rightBottomColor={rightBottomColor}
+                gradientLeftToRight={gradientLeftToRight}
+                showPlaybackLine={showPlaybackLine}
+                showPlayedLines={showPlayedLines}
+                showHoverLine={showHoverLine}
+              />
+            )}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <button
+                type='button'
+                onClick={handleExport}
+                disabled={
+                  !analysis || !selectedFile || duration === null || isExporting
+                }
+              >
+                {isExporting ? 'Exporting...' : 'Export'}
+              </button>
+            </div>
+
+            <div className='output-json'>
+              <pre>{outputJson}</pre>
+            </div>
+          </div>
         )}
       </div>
-
-      {isProcessing && <p>Processing audio…</p>}
-      {error && <p>{error}</p>}
-
-      {analysis && totalChunks > 0 && (
-        <div className='visual-section'>
-          <SoundscapePreview
-            soundLinesVectors={soundLinesVectors}
-            scaledLists={scaledLists}
-            zSpacing={zSpacing}
-            currentTime={currentTime}
-            duration={duration || 1}
-            onSeek={handleSeek}
-            reverseOutput={reverseOutput}
-            leftTopColor={leftTopColor}
-            leftBottomColor={leftBottomColor}
-            rightTopColor={rightTopColor}
-            rightBottomColor={rightBottomColor}
-            gradientLeftToRight={gradientLeftToRight}
-          />
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              marginBottom: '0.5rem',
-            }}
-          >
-            <button
-              type='button'
-              onClick={handleExport}
-              disabled={
-                !analysis || !selectedFile || duration === null || isExporting
-              }
-            >
-              {isExporting ? 'Exporting...' : 'Export'}
-            </button>
-          </div>
-
-          <div className='output-json'>
-            <pre>{outputJson}</pre>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

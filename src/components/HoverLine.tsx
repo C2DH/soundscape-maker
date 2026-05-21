@@ -7,6 +7,7 @@ export interface HoverLineProps {
   hoverIndex: number | null
   duration: number
   reverseOutput: boolean
+  visible?: boolean
 }
 
 /**
@@ -18,9 +19,10 @@ const HoverLine: React.FC<HoverLineProps> = ({
   hoverIndex,
   duration,
   reverseOutput,
+  visible = true,
 }) => {
   // Only show hover line if hovering
-  if (hoverIndex === null || hoverIndex === undefined) {
+  if (!visible || hoverIndex === null || hoverIndex === undefined) {
     return null
   }
 

@@ -60,6 +60,7 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
 
   return (
     <div
+      className='audio-input-dropzone'
       onClick={handleClick}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
@@ -79,6 +80,8 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
         transition: 'border-color 0.2s, background-color 0.2s',
         userSelect: 'none',
         width: '100%',
+        maxWidth: '720px',
+        margin: '0 auto',
         boxSizing: 'border-box',
       }}
     >

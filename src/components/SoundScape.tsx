@@ -230,6 +230,9 @@ const SoundScape = forwardRef<THREE.Mesh, SoundScapeProps>(
           fragmentShader={fragmentSoundScape}
           uniforms={uniforms}
           side={THREE.DoubleSide}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
         />
       </mesh>
     )

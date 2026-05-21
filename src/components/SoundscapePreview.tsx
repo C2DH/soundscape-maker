@@ -16,6 +16,7 @@ export interface SoundscapePreviewProps {
   soundLinesVectors: THREE.Vector3[][]
   scaledLists: number[][]
   zSpacing: number
+  fullscreen?: boolean
   currentTime: number
   duration: number
   onSeek: (clickTime: number) => void
@@ -25,12 +26,16 @@ export interface SoundscapePreviewProps {
   rightTopColor: string
   rightBottomColor: string
   gradientLeftToRight: boolean
+  showPlaybackLine: boolean
+  showPlayedLines: boolean
+  showHoverLine: boolean
 }
 
 export function SoundscapePreview({
   soundLinesVectors,
   scaledLists,
   zSpacing,
+  fullscreen = false,
   currentTime,
   duration,
   onSeek,
@@ -40,6 +45,9 @@ export function SoundscapePreview({
   rightTopColor,
   rightBottomColor,
   gradientLeftToRight,
+  showPlaybackLine,
+  showPlayedLines,
+  showHoverLine,
 }: SoundscapePreviewProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const meshRef = useRef<Mesh | null>(null)
@@ -79,7 +87,9 @@ export function SoundscapePreview({
   }, [setOrbit])
 
   return (
-    <div style={{ width: '100%', height: '400px', marginBottom: '1rem' }}>
+    <div
+      className={fullscreen ? 'soundscape-fullscreen-overlay' : 'soundscape-preview'}
+    >
       <Canvas
         shadows
         camera={{
@@ -122,6 +132,7 @@ export function SoundscapePreview({
             sectionColor={gridColor}
             fadeDistance={600}
             fadeStrength={1}
+            position={[0, -0.2, 0]}
           />
         </group>
 
@@ -129,12 +140,15 @@ export function SoundscapePreview({
           soundLinesVectors={soundLinesVectors}
           currentTime={currentTime}
           duration={duration}
+          showPlaybackLine={showPlaybackLine}
+          showPlayedLines={showPlayedLines}
         />
         <HoverLine
           soundLinesVectors={soundLinesVectors}
           hoverIndex={hoverIndex}
           duration={duration}
           reverseOutput={reverseOutput}
+          visible={showHoverLine}
         />
       </Canvas>
     </div>
