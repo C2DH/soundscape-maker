@@ -10,7 +10,7 @@ const App: React.FC = () => {
     <div className='App'>
       <Routes>
         <Route index element={<Home />} />
-        <Route path='/generatejson' element={<GenerateJSON />} />
+        <Route path='/generatesoundscape' element={<GenerateJSON />} />
       </Routes>
       <Footer />
     </div>

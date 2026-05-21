@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import fft from 'fft-js'
+import { Leva, button, folder, useControls } from 'leva'
 import * as THREE from 'three'
 import AudioInput from '../components/AudioInput'
 import { SoundscapePreview } from '../components/SoundscapePreview'
 import { buildAndDownloadSoundscapePackage } from '../utils/packageBuilder'
+
+const STANDARD_NUM_CHUNKS = 200
+const STANDARD_SOUNDSCAPE_LENGTH = 200
 
 type AudioContextCtor = typeof AudioContext
 type OfflineAudioContextCtor = typeof OfflineAudioContext
@@ -128,21 +132,104 @@ function amplifyArray(arr: number[], factor = 1) {
   return arr.map((value) => Math.pow(value, factor))
 }
 
+function blurActiveElement() {
+  const activeElement = document.activeElement
+  if (activeElement instanceof HTMLElement) {
+    activeElement.blur()
+  }
+}
+
 export default function GenerateJSON() {
   const [outputJson, setOutputJson] = useState<string>('')
-  const [reverseOutput, setReverseOutput] = useState<boolean>(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<number[][] | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [numChunks, setNumChunks] = useState<number>(200)
-  const [amplifyFactor, setAmplifyFactor] = useState<number>(0.6)
   const [isExporting, setIsExporting] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
+  const [generatedNumChunks, setGeneratedNumChunks] = useState(
+    STANDARD_NUM_CHUNKS,
+  )
+  const [isFullscreenPreviewOpen, setIsFullscreenPreviewOpen] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [
+    {
+      numChunks,
+      amplifyFactor,
+      soundscapeLength,
+      reverseOutput,
+      leftTopColor,
+      leftBottomColor,
+      rightTopColor,
+      rightBottomColor,
+      gradientLeftToRight,
+      showPlaybackLine,
+      showPlayedLines,
+      showHoverLine,
+    },
+    setControls,
+    getControls,
+  ] = useControls('Soundscape Controls', () => ({
+    Analysis: folder({
+      numChunks: {
+        value: STANDARD_NUM_CHUNKS,
+        min: 50,
+        max: 1000,
+        step: 10,
+      },
+      soundscapeLength: {
+        value: STANDARD_SOUNDSCAPE_LENGTH,
+        min: 50,
+        max: 1000,
+        step: 10,
+      },
+      amplifyFactor: {
+        value: 0.6,
+        min: 0.01,
+        max: 1.5,
+        step: 0.01,
+      },
+      reverseOutput: false,
+    }),
+    Appearance: folder({
+      leftTopColor: '#aa00ff',
+      leftBottomColor: '#2f0f45',
+      rightTopColor: '#f20099',
+      rightBottomColor: '#5c1f7d',
+      gradientLeftToRight: false,
+    }),
+    Overlays: folder({
+      showPlaybackLine: true,
+      showPlayedLines: true,
+      showHoverLine: true,
+    }),
+  }))
+
+  useControls('Soundscape Controls', {
+    Actions: folder({
+      swapGradientSides: button(() => {
+        const currentLeftTopColor = getControls('leftTopColor')
+        const currentLeftBottomColor = getControls('leftBottomColor')
+        const currentRightTopColor = getControls('rightTopColor')
+        const currentRightBottomColor = getControls('rightBottomColor')
+
+        setControls({
+          leftTopColor: currentRightTopColor,
+          leftBottomColor: currentRightBottomColor,
+          rightTopColor: currentLeftTopColor,
+          rightBottomColor: currentLeftBottomColor,
+        })
+        blurActiveElement()
+      }),
+      toggleFullscreenView: button(() => {
+        setIsFullscreenPreviewOpen((current) => !current)
+        blurActiveElement()
+      }),
+    }),
+  })
 
   const handleAudioSelected = (file: File) => {
     setError(null)
@@ -186,6 +273,7 @@ export default function GenerateJSON() {
       })
       setAnalysis(data)
       setDuration(duration)
+      setGeneratedNumChunks(numChunks)
       setOutputJson(JSON.stringify(data, null, 2))
       // autoplay disabled: user will press play manually
       // (audioRef already prepared in handleAudioSelected)
@@ -197,7 +285,7 @@ export default function GenerateJSON() {
     }
   }
 
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     if (!audioUrl) return
 
     if (!audioRef.current) {
@@ -215,7 +303,34 @@ export default function GenerateJSON() {
       audioRef.current.play()
       setIsPlaying(true)
     }
-  }
+  }, [audioUrl, isPlaying])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') return
+
+      const target = event.target as HTMLElement | null
+      const tagName = target?.tagName
+      const isEditable =
+        target?.isContentEditable ||
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        tagName === 'BUTTON'
+
+      if (isEditable || !audioUrl || !analysis) {
+        return
+      }
+
+      event.preventDefault()
+      handlePlayPause()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [analysis, audioUrl, handlePlayPause])
 
   const handleSeek = useCallback((clickTime: number) => {
     if (audioRef.current && duration) {
@@ -251,6 +366,8 @@ export default function GenerateJSON() {
   }, [isPlaying])
 
   const totalChunks = analysis?.length ?? 0
+  const appliedNumChunks = analysis ? generatedNumChunks : numChunks
+  const zSpacing = soundscapeLength / Math.max(1, appliedNumChunks)
 
   const handleExport = async () => {
     if (!selectedFile || !analysis || duration === null) return
@@ -280,22 +397,22 @@ export default function GenerateJSON() {
         scaledLists: [] as number[][],
       }
     // optionally amplify values; larger amplifyFactor should yield a taller model
-    let tempAmplified = null;
-    if (reverseOutput === true){
+    let tempAmplified = null
+    if (reverseOutput === true) {
       tempAmplified = analysis.map((row) =>
         row.map((y) => Math.pow(y, amplifyFactor)),
       ).reverse()
-    }
-    else{
+    } else {
       tempAmplified = analysis.map((row) =>
         row.map((y) => Math.pow(y, amplifyFactor)),
       )
     }
-    const amplified = tempAmplified;
+    const amplified = tempAmplified
     // instead of normalizing to a constant height, simply multiply by an overall
     // constant so that increasing amplifyFactor makes the mesh visibly larger
     const baseHeight = 3 // adjust if the mesh is too tall/short
     const scaleFactor = amplifyFactor * baseHeight
+    const zOffset = ((analysis.length || 0) - 1) * zSpacing * 0.5
     const scaled = amplified.map((row) => row.map((y) => y * scaleFactor))
     const vectors = scaled.map((row, t) =>
       row.map(
@@ -303,137 +420,142 @@ export default function GenerateJSON() {
           new THREE.Vector3(
             x - row.length / 2,
             y,
-            t - Math.floor((analysis.length || 0) / 2),
+            t * zSpacing - zOffset,
           ),
       ),
     )
-    if (reverseOutput === true){
+    if (reverseOutput === true) {
       return { soundLinesVectors: vectors.reverse(), scaledLists: scaled }
-    }
-    else{
+    } else {
       return { soundLinesVectors: vectors, scaledLists: scaled }
     }
-    
-  }, [amplifyFactor, analysis, reverseOutput])
+  }, [amplifyFactor, analysis, reverseOutput, zSpacing])
 
   return (
     <main className='app-root'>
-      <h1>Generate JSON</h1>
-      <p>
-        Upload an audio file to generate JSON data and preview the resulting
-        soundscape below.
-      </p>
+      {analysis && totalChunks > 0 && isFullscreenPreviewOpen && (
+        <SoundscapePreview
+          soundLinesVectors={soundLinesVectors}
+          scaledLists={scaledLists}
+          zSpacing={zSpacing}
+          fullscreen
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration || 1}
+          onSeek={handleSeek}
+          onTogglePlayPause={handlePlayPause}
+          reverseOutput={reverseOutput}
+          leftTopColor={leftTopColor}
+          leftBottomColor={leftBottomColor}
+          rightTopColor={rightTopColor}
+          rightBottomColor={rightBottomColor}
+          gradientLeftToRight={gradientLeftToRight}
+          showPlaybackLine={showPlaybackLine}
+          showPlayedLines={showPlayedLines}
+          showHoverLine={showHoverLine}
+        />
+      )}
+      <Leva collapsed={false} oneLineLabels />
+      <div className='app-content'>
+        <h1>Generate Soundscape</h1>
+        <p>
+          Upload an audio file to generate JSON data and preview the resulting
+          soundscape below.
+        </p>
 
-      <AudioInput onAudioSelected={handleAudioSelected} />
+        <AudioInput onAudioSelected={handleAudioSelected} />
 
-      <div
-        style={{
-          marginTop: '0.75rem',
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <strong>Selected file:</strong>{' '}
-          {selectedFile ? selectedFile.name : 'None'}
+        <div
+          className='audio-selection-row'
+          style={{
+            marginTop: '0.75rem',
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+          }}
+        >
+          <div>
+            <strong>Selected file:</strong>{' '}
+            {selectedFile ? selectedFile.name : 'None'}
+          </div>
+
+          <button
+            type='button'
+            onClick={handleGenerate}
+            disabled={!selectedFile || isProcessing}
+          >
+            Generate
+          </button>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>numChunks:</span>
-          <input
-            type='number'
-            value={numChunks}
-            min={1}
-            onChange={(e) =>
-              setNumChunks(Math.max(1, Number(e.target.value) || 1))
-            }
-            style={{ width: 120 }}
-          />
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>amplify:</span>
-          <input
-            type='number'
-            value={amplifyFactor}
-            step='0.1'
-            min={0}
-            onChange={(e) => setAmplifyFactor(Number(e.target.value) || 0)}
-            style={{ width: 120 }}
-          />
-        </label>
+        <div style={{ marginTop: '1rem' }}>
+          <button
+            type='button'
+            onClick={handlePlayPause}
+            disabled={!audioUrl || !analysis}
+          >
+            {isPlaying ? 'Pause' : 'Play'}
+          </button>
+          {duration !== null && (
+            <span style={{ marginLeft: '0.75rem', fontSize: '0.9rem' }}>
+              {currentTime.toFixed(1)}s / {duration.toFixed(1)}s
+            </span>
+          )}
+        </div>
 
-        <button
-          type='button'
-          onClick={handleGenerate}
-          disabled={!selectedFile || isProcessing}
-        >
-          Generate
-        </button>
-      </div>
+        {isProcessing && <p>Processing audio…</p>}
+        {error && <p>{error}</p>}
 
-      <div style={{ marginTop: '1rem' }}>
-        <button
-          type='button'
-          onClick={handlePlayPause}
-          disabled={!audioUrl || !analysis}
-        >
-          {isPlaying ? 'Pause' : 'Play'}
-        </button>
-        {duration !== null && (
-          <span style={{ marginLeft: '0.75rem', fontSize: '0.9rem' }}>
-            {currentTime.toFixed(1)}s / {duration.toFixed(1)}s
-          </span>
+        {analysis && totalChunks > 0 && (
+          <div className='visual-section'>
+            {!isFullscreenPreviewOpen && (
+              <SoundscapePreview
+                soundLinesVectors={soundLinesVectors}
+                scaledLists={scaledLists}
+                zSpacing={zSpacing}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                duration={duration || 1}
+                onSeek={handleSeek}
+                onTogglePlayPause={handlePlayPause}
+                reverseOutput={reverseOutput}
+                leftTopColor={leftTopColor}
+                leftBottomColor={leftBottomColor}
+                rightTopColor={rightTopColor}
+                rightBottomColor={rightBottomColor}
+                gradientLeftToRight={gradientLeftToRight}
+                showPlaybackLine={showPlaybackLine}
+                showPlayedLines={showPlayedLines}
+                showHoverLine={showHoverLine}
+              />
+            )}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <button
+                type='button'
+                onClick={handleExport}
+                disabled={
+                  !analysis || !selectedFile || duration === null || isExporting
+                }
+              >
+                {isExporting ? 'Exporting...' : 'Export'}
+              </button>
+            </div>
+
+            <div className='output-json'>
+              <pre>{outputJson}</pre>
+            </div>
+          </div>
         )}
       </div>
-
-      {isProcessing && <p>Processing audio…</p>}
-      {error && <p>{error}</p>}
-
-      {analysis && totalChunks > 0 && (
-        <div className='visual-section'>
-          <SoundscapePreview
-            soundLinesVectors={soundLinesVectors}
-            scaledLists={scaledLists}
-            currentTime={currentTime}
-            duration={duration || 1}
-            onSeek={handleSeek}
-            reverseOutput={reverseOutput}
-          />
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              marginBottom: '0.5rem',
-            }}
-          >
-            <button
-              type='button'
-              onClick={handleExport}
-              disabled={
-                !analysis || !selectedFile || duration === null || isExporting
-              }
-            >
-              {isExporting ? 'Exporting...' : 'Export'}
-            </button>
-            <button
-              type='button'
-              onClick={() => setReverseOutput((prev) => !prev)}
-              disabled={
-                !analysis || !selectedFile || duration === null || isExporting
-              }
-            >
-              {reverseOutput ? 'Make right to left' : 'Make left to right'}
-            </button>
-          </div>
-
-          <div className='output-json'>
-            <pre>{outputJson}</pre>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

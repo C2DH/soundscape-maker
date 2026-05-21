@@ -12,6 +12,7 @@ export type SoundLineProps = {
   points: THREE.Vector3[]
   color?: string
   lineWidth?: number
+  depthTest?: boolean
   tweenDuration?: number
   easing?: (t: number) => number
   scale?: [number, number, number]
@@ -36,6 +37,7 @@ const SoundLine: React.FC<SoundLineProps> = ({
   points,
   color = 'white',
   lineWidth = 0.2,
+  depthTest = false,
   tweenDuration = 200,
   easing = easeOutQuint,
   scale = [0.6, 1.05, -0.8],
@@ -155,12 +157,13 @@ const SoundLine: React.FC<SoundLineProps> = ({
       resolution,
       worldUnits: true,
       transparent: true,
+      depthTest,
       side: THREE.DoubleSide,
     })
     const line = new Line2(geometry, material)
     line.computeLineDistances() // Ensure line distances are calculated for dashed/material effects
     return line
-  }, [color, lineWidth, resolution])
+  }, [color, depthTest, lineWidth, resolution])
 
   return (
     <>
@@ -169,12 +172,9 @@ const SoundLine: React.FC<SoundLineProps> = ({
         <group ref={htmlGroupRef}>
           <Html
             transform
+            sprite
             scale={4}
-            rotation={[
-              showCurrentTimeAsHtml ? Math.PI / 2 : Math.PI / -2,
-              0,
-              Math.PI / 2,
-            ]}
+            rotation={showCurrentTimeAsHtml ? [0, 0, 0] : [Math.PI / -2, 0, Math.PI / 2]}
             position={[showCurrentTimeAsHtml ? 96 : 58, 0, 0]}
           >
             <div ref={htmlRef} style={{ color: 'white', fontSize: '16px' }}>

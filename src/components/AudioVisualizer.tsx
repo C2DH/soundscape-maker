@@ -9,6 +9,8 @@ export interface AudioVisualizerProps {
   soundLinesVectors: THREE.Vector3[][]
   currentTime: number
   duration: number
+  showPlaybackLine?: boolean
+  showPlayedLines?: boolean
 }
 
 /**
@@ -20,6 +22,8 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   soundLinesVectors,
   currentTime,
   duration,
+  showPlaybackLine = true,
+  showPlayedLines = true,
 }) => {
   const totalLinesCount = soundLinesVectors.length
 
@@ -34,23 +38,27 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const colors = useThemeStore((s) => s.colors)
   return (
     <>
-      <SoundLines
-        lines={soundLinesVectors}
-        lineIdx={progressBasedLineCount}
-        position={[0, 0.5, 0]}
-        color={colors['--accent-3d']}
-      />
-      <SoundLine
-        points={soundLinesVectors[progressBasedLineCount] || []}
-        scale={[1, 1, 1]}
-        position={[0, 1, 0]}
-        color={colors['--accent-3d-time']}
-        showCurrentTimeAsHtml={true}
-        currentTime={currentTime}
-        duration={duration}
-        totalLines={totalLinesCount}
-        highlightIndex={progressBasedLineCount}
-      />
+      {showPlayedLines && (
+        <SoundLines
+          lines={soundLinesVectors}
+          lineIdx={progressBasedLineCount}
+          position={[0, 0.5, 0]}
+          color={colors['--accent-3d']}
+        />
+      )}
+      {showPlaybackLine && (
+        <SoundLine
+          points={soundLinesVectors[progressBasedLineCount] || []}
+          scale={[1, 1, 1]}
+          position={[0, 1, 0]}
+          color={colors['--accent-3d-time']}
+          showCurrentTimeAsHtml={true}
+          currentTime={currentTime}
+          duration={duration}
+          totalLines={totalLinesCount}
+          highlightIndex={progressBasedLineCount}
+        />
+      )}
     </>
   )
 }

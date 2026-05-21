@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from 'react'
+import React from 'react'
 import * as THREE from 'three'
 import SoundLine from './SoundLine'
 
@@ -7,6 +7,7 @@ export interface HoverLineProps {
   hoverIndex: number | null
   duration: number
   reverseOutput: boolean
+  visible?: boolean
 }
 
 /**
@@ -17,28 +18,22 @@ const HoverLine: React.FC<HoverLineProps> = ({
   soundLinesVectors,
   hoverIndex,
   duration,
-  reverseOutput
+  reverseOutput,
+  visible = true,
 }) => {
   // Only show hover line if hovering
-  if (hoverIndex === null || hoverIndex === undefined) {
+  if (!visible || hoverIndex === null || hoverIndex === undefined) {
     return null
   }
 
-  const [safeHoverIndex, setSafeHoverIndex] = useState<number>(0)
-
-  useEffect(() => {
-    setSafeHoverIndex(Math.max(0, Math.min(hoverIndex, soundLinesVectors.length - 1)))
-  }, [hoverIndex])
-
   const totalLinesCount = soundLinesVectors.length
-  useEffect(() => {
-    if (reverseOutput===true){
-      setSafeHoverIndex(totalLinesCount - Math.max(0, Math.min(hoverIndex, totalLinesCount - 1)))
-    }
-    else{
-      setSafeHoverIndex(Math.max(0, Math.min(hoverIndex, totalLinesCount - 1)))
-    }
-  }, [reverseOutput, hoverIndex, totalLinesCount])
+  const clampedHoverIndex = Math.max(
+    0,
+    Math.min(hoverIndex, totalLinesCount - 1),
+  )
+  const safeHoverIndex = reverseOutput
+    ? Math.max(0, totalLinesCount - 1 - clampedHoverIndex)
+    : clampedHoverIndex
   const displayTime =
     totalLinesCount > 1
       ? (safeHoverIndex / (totalLinesCount - 1)) * duration
