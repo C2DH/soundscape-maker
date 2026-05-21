@@ -4,6 +4,7 @@ import { Leva, button, folder, useControls } from 'leva'
 import * as THREE from 'three'
 import AudioInput from '../components/AudioInput'
 import { SoundscapePreview } from '../components/SoundscapePreview'
+import { exportSoundscapeAsGltf } from '../utils/gltfExporter'
 import { buildAndDownloadSoundscapePackage } from '../utils/packageBuilder'
 
 const STANDARD_NUM_CHUNKS = 200
@@ -148,6 +149,7 @@ export default function GenerateJSON() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [isExportingGltf, setIsExportingGltf] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [generatedNumChunks, setGeneratedNumChunks] = useState(
@@ -389,6 +391,31 @@ export default function GenerateJSON() {
     }
   }
 
+  const handleExportGltf = async () => {
+    if (!selectedFile || !scaledLists.length) return
+
+    setError(null)
+    setIsExportingGltf(true)
+
+    try {
+      await exportSoundscapeAsGltf({
+        lists: scaledLists,
+        zSpacing,
+        fileName: `${selectedFile.name.replace(/\.[^/.]+$/, '') || 'soundscape'}.glb`,
+        leftTopColor,
+        leftBottomColor,
+        rightTopColor,
+        rightBottomColor,
+        gradientLeftToRight,
+      })
+    } catch (e) {
+      console.error(e)
+      setError('Failed to export 3D model.')
+    } finally {
+      setIsExportingGltf(false)
+    }
+  }
+
   // scale raw data to reasonable height and also produce vectors
   const { soundLinesVectors, scaledLists } = useMemo(() => {
     if (!analysis)
@@ -547,6 +574,13 @@ export default function GenerateJSON() {
                 }
               >
                 {isExporting ? 'Exporting...' : 'Export'}
+              </button>
+              <button
+                type='button'
+                onClick={handleExportGltf}
+                disabled={!analysis || !selectedFile || isExportingGltf}
+              >
+                {isExportingGltf ? 'Exporting 3D...' : 'Export 3D (.glb)'}
               </button>
             </div>
 
