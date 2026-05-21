@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Canvas } from '@react-three/fiber'
 import * as THREE from 'three'
 import AudioVisualizer, {
@@ -62,7 +62,7 @@ const AudioVisualizerWrapper = ({
       console.log('Current Time:', currentTime)
     }, delay)
     return () => clearInterval(interval)
-  }, [duration])
+  }, [delay, duration])
   return (
     <AudioVisualizer
       duration={duration}
@@ -88,7 +88,9 @@ export const SimulateStreaming: Story = {
     currentTime: 0,
     delay: 100, // custom prop to control update speed in the wrapper
   } as AudioVisualizerProps & { delay: number },
-  render: (args: AudioVisualizerProps) => <AudioVisualizerWrapper {...args} />,
+  render: (args) => (
+    <AudioVisualizerWrapper {...(args as AudioVisualizerProps & { delay: number })} />
+  ),
 
   name: 'Simulate Streaming Data',
 }

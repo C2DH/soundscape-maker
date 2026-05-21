@@ -15,19 +15,31 @@ const isMobile =
 export interface SoundscapePreviewProps {
   soundLinesVectors: THREE.Vector3[][]
   scaledLists: number[][]
+  zSpacing: number
   currentTime: number
   duration: number
   onSeek: (clickTime: number) => void
   reverseOutput: boolean
+  leftTopColor: string
+  leftBottomColor: string
+  rightTopColor: string
+  rightBottomColor: string
+  gradientLeftToRight: boolean
 }
 
 export function SoundscapePreview({
   soundLinesVectors,
   scaledLists,
+  zSpacing,
   currentTime,
   duration,
   onSeek,
-  reverseOutput
+  reverseOutput,
+  leftTopColor,
+  leftBottomColor,
+  rightTopColor,
+  rightBottomColor,
+  gradientLeftToRight,
 }: SoundscapePreviewProps) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const meshRef = useRef<Mesh | null>(null)
@@ -92,9 +104,15 @@ export function SoundscapePreview({
           <SoundScape
             ref={meshRef}
             lists={scaledLists}
+            zSpacing={zSpacing}
             position={[0, 0, 0]}
             onHover={handleMeshHover}
             onClick={handleMeshClick}
+            leftTopColor={leftTopColor}
+            leftBottomColor={leftBottomColor}
+            rightTopColor={rightTopColor}
+            rightBottomColor={rightBottomColor}
+            gradientLeftToRight={gradientLeftToRight}
           />
           <Grid
             args={[164, 164]}

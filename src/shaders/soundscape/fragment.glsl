@@ -1,7 +1,10 @@
-uniform vec3 color1;
-uniform vec3 color2;
+uniform vec3 colorLeftTop;
+uniform vec3 colorLeftBottom;
+uniform vec3 colorRightTop;
+uniform vec3 colorRightBottom;
 uniform vec3 uBboxMin;
 uniform vec3 uBboxMax;
+uniform float uGradientLeftToRight;
 uniform float uRoughness;      // 0.0 = sharp mirror-like, 1.0 = very rough
 uniform float uRoughnessPower; // scales the range
 uniform vec3 uCameraPosition;  // pass from Three.js camera.position
@@ -10,10 +13,20 @@ varying vec3 vWorldPosition;
 varying vec3 vNormal;
 
 void main() {
-    // Gradient based on height
-    float normalizedHeight = (vWorldPosition.y - uBboxMin.y) / (uBboxMax.y - uBboxMin.y);
+    float bboxWidth = max(uBboxMax.x - uBboxMin.x, 0.0001);
+    float bboxDepth = max(uBboxMax.z - uBboxMin.z, 0.0001);
+    float bboxHeight = max(uBboxMax.y - uBboxMin.y, 0.0001);
+    float normalizedWidth = (vWorldPosition.x - uBboxMin.x) / bboxWidth;
+    float normalizedDepth = (vWorldPosition.z - uBboxMin.z) / bboxDepth;
+    float normalizedHeight = (vWorldPosition.y - uBboxMin.y) / bboxHeight;
+    normalizedWidth = clamp(normalizedWidth, 0.0, 1.0);
+    normalizedDepth = clamp(normalizedDepth, 0.0, 1.0);
     normalizedHeight = clamp(normalizedHeight, 0.0, 1.0);
-    vec3 baseColor = mix(color1, color2, normalizedHeight);
+    float backToFrontBlend = 1.0 - normalizedDepth;
+    float horizontalBlend = mix(backToFrontBlend, normalizedWidth, uGradientLeftToRight);
+    vec3 leftColor = mix(colorLeftBottom, colorLeftTop, normalizedHeight);
+    vec3 rightColor = mix(colorRightBottom, colorRightTop, normalizedHeight);
+    vec3 baseColor = mix(leftColor, rightColor, horizontalBlend);
     
     // World-space normal & view direction
     vec3 normal = normalize(vNormal);
