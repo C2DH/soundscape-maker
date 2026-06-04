@@ -88,6 +88,7 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
       aria-label='Upload audio file'
       htmlFor='audio-input'
       style={{
+        display: 'block',
         border: `2px dashed ${isDragOver ? '#646cff' : 'rgba(255,255,255,0.3)'}`,
         borderRadius: '12px',
         padding: '2rem 3rem',
