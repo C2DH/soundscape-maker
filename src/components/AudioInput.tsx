@@ -4,6 +4,19 @@ export interface AudioInputProps {
   onAudioSelected?: (file: File) => void
 }
 
+const ACCEPTED_AUDIO_EXTENSIONS = [
+  '.mp3',
+  '.m4a',
+  '.aac',
+  '.wav',
+  '.aiff',
+  '.aif',
+  '.ogg',
+  '.flac',
+  '.mp4',
+  '.caf',
+]
+
 export default function AudioInput({ onAudioSelected }: AudioInputProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -11,7 +24,15 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
   const handleFile = (file: File | undefined) => {
     if (!file) return
 
-    if (!file.type.startsWith('audio/')) {
+    const fileName = file.name.toLowerCase()
+    const hasAcceptedExtension = ACCEPTED_AUDIO_EXTENSIONS.some((extension) =>
+      fileName.endsWith(extension),
+    )
+    const hasAudioMimeType = file.type.startsWith('audio/')
+    const hasLikelyAudioMimeType =
+      file.type === 'video/mp4' && fileName.endsWith('.m4a')
+
+    if (!hasAudioMimeType && !hasLikelyAudioMimeType && !hasAcceptedExtension) {
       window.alert('Please select an audio file.')
       return
     }
@@ -25,43 +46,38 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
     event.target.value = ''
   }
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
     event.preventDefault()
     setIsDragOver(true)
   }
 
-  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragEnter = (event: React.DragEvent<HTMLLabelElement>) => {
     event.preventDefault()
     setIsDragOver(true)
   }
 
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (event: React.DragEvent<HTMLLabelElement>) => {
     event.preventDefault()
     setIsDragOver(false)
   }
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
     event.preventDefault()
     setIsDragOver(false)
     const file = event.dataTransfer.files?.[0]
     handleFile(file)
   }
 
-  const handleClick = () => {
-    inputRef.current?.click()
-  }
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLLabelElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
-      handleClick()
+      inputRef.current?.click()
     }
   }
 
   return (
-    <div
+    <label
       className='audio-input-dropzone'
-      onClick={handleClick}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -70,6 +86,7 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
       role='button'
       tabIndex={0}
       aria-label='Upload audio file'
+      htmlFor='audio-input'
       style={{
         border: `2px dashed ${isDragOver ? '#646cff' : 'rgba(255,255,255,0.3)'}`,
         borderRadius: '12px',
@@ -96,10 +113,20 @@ export default function AudioInput({ onAudioSelected }: AudioInputProps) {
         ref={inputRef}
         id='audio-input'
         type='file'
-        accept='audio/*'
+        accept='audio/*,.mp3,.m4a,.aac,.wav,.aiff,.aif,.ogg,.flac,.mp4,.caf'
         onChange={handleChange}
-        style={{ display: 'none' }}
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
       />
-    </div>
+    </label>
   )
 }
