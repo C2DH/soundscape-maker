@@ -32,8 +32,8 @@ const HoverLine: React.FC<HoverLineProps> = ({
     Math.min(hoverIndex, totalLinesCount - 1),
   )
   const safeHoverIndex = reverseOutput
-    ? Math.max(0, totalLinesCount - 1 - clampedHoverIndex)
-    : clampedHoverIndex
+    ? clampedHoverIndex
+    : Math.max(0, totalLinesCount - 1 - clampedHoverIndex)
   const displayTime =
     totalLinesCount > 1
       ? (safeHoverIndex / (totalLinesCount - 1)) * duration
