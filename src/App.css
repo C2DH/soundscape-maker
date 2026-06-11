@@ -100,6 +100,43 @@
   -webkit-backdrop-filter: blur(10px);
 }
 
+.leva-container.show-num-chunks-confirmation
+  button:is(:has(+ button:last-child), button:last-child) {
+  min-width: 64px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.leva-container.show-num-chunks-confirmation
+  button:is(:has(+ button:last-child), button:last-child):hover {
+  border-color: rgba(var(--accent), 0.8);
+  background: rgba(var(--accent), 0.35);
+}
+
+.leva-container.show-num-chunks-confirmation
+  button:is(:has(+ button:last-child), button:last-child):focus-visible {
+  outline: 2px solid rgba(var(--accent), 0.9);
+  outline-offset: 1px;
+}
+
+.leva-container .num-chunks-confirmation-message {
+  grid-template-columns: 1fr;
+}
+
+.leva-container .num-chunks-confirmation-message > div:first-child {
+  display: none;
+}
+
 .soundscape-fullscreen-overlay canvas {
   width: 100% !important;
   height: 100% !important;
