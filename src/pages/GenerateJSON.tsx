@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import fft from "fft-js";
-import { LevaPanel, button, folder, useControls, useCreateStore } from "leva";
+import {
+  LevaPanel,
+  button,
+  buttonGroup,
+  folder,
+  useControls,
+  useCreateStore,
+} from "leva";
 import * as THREE from "three";
 import AudioInput from "../components/AudioInput";
 import { SoundscapePreview } from "../components/SoundscapePreview";
@@ -141,6 +148,53 @@ function blurActiveElement() {
   }
 }
 
+export interface NumChunksConfirmationControlsProps {
+  store: ReturnType<typeof useCreateStore>;
+  currentNumChunks: number;
+  pendingNumChunks: number;
+  onConfirm: () => void;
+  onDiscard: () => void;
+}
+
+function NumChunksConfirmationControls({
+  store,
+  currentNumChunks,
+  pendingNumChunks,
+  onConfirm,
+  onDiscard,
+}: NumChunksConfirmationControlsProps) {
+  const confirmationId = `${currentNumChunks}-${pendingNumChunks}`;
+
+  useControls(
+    "Soundscape Controls",
+    () => ({
+      Analysis: folder({
+        [`numChunksConfirmationMessage${confirmationId}`]: {
+          value: `Regenerate from ${currentNumChunks} to ${pendingNumChunks} chunks?`,
+          editable: false,
+          rows: 2,
+          label: "",
+          order: -90,
+        },
+        [`numChunksConfirmationActions${confirmationId}`]: {
+          ...buttonGroup({
+            label: null,
+            opts: {
+              Yes: onConfirm,
+              No: onDiscard,
+            },
+          }),
+          order: -80,
+        },
+      }),
+    }),
+    { store },
+    [currentNumChunks, onConfirm, onDiscard, pendingNumChunks],
+  );
+
+  return null;
+}
+
 export default function GenerateJSON() {
   const [, setOutputJson] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -162,7 +216,10 @@ export default function GenerateJSON() {
     (s) => s.setFullscreenPreviewOpen,
   );
   const levaStore = useCreateStore();
+  const [showLevaNumchunksPopup, setShowLevaNumchunksPopup] = useState(false);
+  const [pendingNumChunks, setPendingNumChunks] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const levaContainerRef = useRef<HTMLDivElement | null>(null);
   const [
     {
       numChunks,
@@ -189,6 +246,20 @@ export default function GenerateJSON() {
           min: 50,
           max: 1000,
           step: 10,
+          order: -100,
+          transient: false,
+          onChange: (value, _path, context) => {
+            if (context.initial || !selectedFile) return;
+
+            if (value === generatedNumChunks) {
+              setPendingNumChunks(null);
+              setShowLevaNumchunksPopup(false);
+              return;
+            }
+
+            setPendingNumChunks(value);
+            setShowLevaNumchunksPopup(true);
+          },
         },
         soundscapeLength: {
           value: STANDARD_SOUNDSCAPE_LENGTH,
@@ -221,6 +292,7 @@ export default function GenerateJSON() {
       }),
     }),
     { store: levaStore },
+    [generatedNumChunks, selectedFile],
   );
 
   useControls(
@@ -256,6 +328,29 @@ export default function GenerateJSON() {
     { store: levaStore },
   );
 
+  const regenerateSoundscape = useCallback(
+    async (file: File, chunkCount: number) => {
+      setError(null);
+      setIsProcessing(true);
+
+      try {
+        const { data, duration } = await analyseAudioFile(file, {
+          numChunks: chunkCount,
+        });
+        setAnalysis(data);
+        setDuration(duration);
+        setGeneratedNumChunks(chunkCount);
+        setOutputJson(JSON.stringify(data, null, 2));
+      } catch (e) {
+        console.error(e);
+        setError("Failed to analyse audio.");
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [],
+  );
+
   const handleAudioSelected = (file: File) => {
     setError(null);
     setOutputJson("");
@@ -263,6 +358,8 @@ export default function GenerateJSON() {
     setDuration(null);
     setCurrentTime(0);
     setFullscreenPreviewOpen(true);
+    setShowLevaNumchunksPopup(false);
+    setPendingNumChunks(null);
 
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
@@ -283,25 +380,75 @@ export default function GenerateJSON() {
       setCurrentTime(0);
     };
 
-    void (async () => {
-      setIsProcessing(true);
-
-      try {
-        const { data, duration } = await analyseAudioFile(file, {
-          numChunks,
-        });
-        setAnalysis(data);
-        setDuration(duration);
-        setGeneratedNumChunks(numChunks);
-        setOutputJson(JSON.stringify(data, null, 2));
-      } catch (e) {
-        console.error(e);
-        setError("Failed to analyse audio.");
-      } finally {
-        setIsProcessing(false);
-      }
-    })();
+    void regenerateSoundscape(file, numChunks);
   };
+
+  const handleConfirmNumChunks = useCallback(() => {
+    if (!selectedFile || pendingNumChunks === null || isProcessing) return;
+
+    const nextNumChunks = pendingNumChunks;
+    setShowLevaNumchunksPopup(false);
+    setPendingNumChunks(null);
+    blurActiveElement();
+    void regenerateSoundscape(selectedFile, nextNumChunks);
+  }, [
+    isProcessing,
+    pendingNumChunks,
+    regenerateSoundscape,
+    selectedFile,
+  ]);
+
+  const handleDiscardNumChunks = useCallback(() => {
+    setShowLevaNumchunksPopup(false);
+    setPendingNumChunks(null);
+    setControls({ numChunks: generatedNumChunks });
+    blurActiveElement();
+  }, [generatedNumChunks, setControls]);
+
+  useEffect(() => {
+    const container = levaContainerRef.current;
+    if (!container) return;
+
+    let frameId = 0;
+    const refreshExpandedFolderHeights = () => {
+      frameId = window.requestAnimationFrame(() => {
+        const confirmationMessage = Array.from(
+          container.querySelectorAll<HTMLDivElement>("div"),
+        ).find(
+          (element) =>
+            element.childElementCount === 0 &&
+            element.textContent?.trim().startsWith("Regenerate from "),
+        );
+        const confirmationRow = confirmationMessage?.parentElement;
+        confirmationRow?.classList.add("num-chunks-confirmation-message");
+
+        container
+          .querySelectorAll<HTMLElement>('div[style*="height"]')
+          .forEach((wrapper) => {
+            const content = wrapper.firstElementChild;
+            if (
+              wrapper.style.height === "0px" ||
+              !(content instanceof HTMLElement) ||
+              window.getComputedStyle(content).display !== "grid"
+            ) {
+              return;
+            }
+
+            wrapper.style.removeProperty("height");
+            wrapper.style.removeProperty("overflow");
+          });
+      });
+    };
+
+    const observer = new MutationObserver(refreshExpandedFolderHeights);
+    observer.observe(container, { childList: true, subtree: true });
+    refreshExpandedFolderHeights();
+
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [isFullscreenPreviewOpen, pendingNumChunks, showLevaNumchunksPopup]);
 
   const handlePlayPause = useCallback(() => {
     if (!audioUrl) return;
@@ -478,6 +625,16 @@ export default function GenerateJSON() {
 
   return (
     <main className="app-root flex items-center justify-center min-h-screen p-4">
+      {showLevaNumchunksPopup && pendingNumChunks !== null && (
+        <NumChunksConfirmationControls
+          key={`${generatedNumChunks}-${pendingNumChunks}`}
+          store={levaStore}
+          currentNumChunks={generatedNumChunks}
+          pendingNumChunks={pendingNumChunks}
+          onConfirm={handleConfirmNumChunks}
+          onDiscard={handleDiscardNumChunks}
+        />
+      )}
       {analysis && totalChunks > 0 && isFullscreenPreviewOpen && (
         <SoundscapePreview
           soundLinesVectors={soundLinesVectors}
@@ -502,8 +659,17 @@ export default function GenerateJSON() {
         />
       )}
       {isFullscreenPreviewOpen && (
-        <div className="fixed top-4 left-4 z-20 leva-container">
-          <LevaPanel store={levaStore} collapsed={false} oneLineLabels />
+        <div
+          ref={levaContainerRef}
+          className={`fixed top-4 left-4 z-20 leva-container ${
+            showLevaNumchunksPopup ? "show-num-chunks-confirmation" : ""
+          }`}
+        >
+          <LevaPanel
+            store={levaStore}
+            collapsed={false}
+            oneLineLabels
+          />
         </div>
       )}
       <div className="app-content mb-24">
