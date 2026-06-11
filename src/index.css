@@ -6,8 +6,8 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: rgba(var(--light), 1);
+  background-color: rgba(var(--dark), 1);
 
   --light: 225, 225, 225; /*#e1e1e1*/
   --dark: 20, 20, 20; /* #141414 */
@@ -69,7 +69,7 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
+/* @media (prefers-color-scheme: light) {
   :root {
     color: rgba(var(--dark), 1);
     background-color: rgba(var(--light), 1);
@@ -80,4 +80,4 @@ button:focus-visible {
   button {
     background-color: rgba(var(--light), 1);
   }
-}
+} */

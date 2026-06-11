@@ -202,7 +202,10 @@ export default function GenerateJSON() {
           max: 1.5,
           step: 0.01,
         },
-        reverseOutput: true,
+        reverseOutput: {
+          value: false,
+          label: "Reverse output (right to left)",
+        },
       }),
       Appearance: folder({
         leftTopColor: "#aa00ff",
@@ -351,7 +354,7 @@ export default function GenerateJSON() {
     (clickTime: number) => {
       if (audioRef.current && duration) {
         const seekTime = (clickTime / (analysis?.length || 1)) * duration;
-        if (reverseOutput === true) {
+        if (!reverseOutput) {
           audioRef.current.currentTime =
             duration - Math.max(0, Math.min(seekTime, duration));
         } else {
@@ -444,7 +447,7 @@ export default function GenerateJSON() {
       };
     // optionally amplify values; larger amplifyFactor should yield a taller model
     let tempAmplified = null;
-    if (reverseOutput === true) {
+    if (!reverseOutput) {
       tempAmplified = analysis
         .map((row) => row.map((y) => Math.pow(y, amplifyFactor)))
         .reverse();
@@ -466,7 +469,7 @@ export default function GenerateJSON() {
           new THREE.Vector3(x - row.length / 2, y, t * zSpacing - zOffset),
       ),
     );
-    if (reverseOutput === true) {
+    if (!reverseOutput) {
       return { soundLinesVectors: vectors.reverse(), scaledLists: scaled };
     } else {
       return { soundLinesVectors: vectors, scaledLists: scaled };
