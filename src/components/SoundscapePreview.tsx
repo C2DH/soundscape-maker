@@ -72,7 +72,6 @@ export function SoundscapePreview({
   const setMesh = useMeshStore((s) => s.setMesh);
   const setOrbit = useOrbitStore((s) => s.setOrbit);
   const setPreviewExport = usePreviewExportStore((s) => s.setPreviewExport);
-  const clearPreviewExport = usePreviewExportStore((s) => s.clearPreviewExport);
   const toggleFullscreenPreview = useFullscreenPreviewStore(
     (s) => s.toggleFullscreenPreview,
   );
@@ -109,8 +108,10 @@ export function SoundscapePreview({
   }, [setOrbit]);
 
   useEffect(() => {
-    return () => clearPreviewExport();
-  }, [clearPreviewExport]);
+    return () => {
+      usePreviewExportStore.getState().clearPreviewExport();
+    };
+  }, []);
 
   const handleCanvasCreated = useCallback(
     ({ gl, scene, camera }: RootState) => {
