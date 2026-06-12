@@ -153,5 +153,5 @@ function downloadBlob(blob: Blob, fileName: string) {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }

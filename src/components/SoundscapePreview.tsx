@@ -108,7 +108,9 @@ export function SoundscapePreview({
     }
   }, [setOrbit]);
 
-  useEffect(() => clearPreviewExport, [clearPreviewExport]);
+  useEffect(() => {
+    return () => clearPreviewExport();
+  }, [clearPreviewExport]);
 
   const handleCanvasCreated = useCallback(
     ({ gl, scene, camera }: RootState) => {
