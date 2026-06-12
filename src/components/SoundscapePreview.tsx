@@ -1,6 +1,7 @@
 import type { ElementRef } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
+import type { RootState } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
 import type { Mesh } from "three";
 import * as THREE from "three";
@@ -15,6 +16,7 @@ import {
   useFullscreenPreviewStore,
   useMeshStore,
   useOrbitStore,
+  usePreviewExportStore,
   useThemeStore,
 } from "../store";
 
@@ -69,6 +71,8 @@ export function SoundscapePreview({
   const orbitRef = useRef<ElementRef<typeof OrbitControls> | null>(null);
   const setMesh = useMeshStore((s) => s.setMesh);
   const setOrbit = useOrbitStore((s) => s.setOrbit);
+  const setPreviewExport = usePreviewExportStore((s) => s.setPreviewExport);
+  const clearPreviewExport = usePreviewExportStore((s) => s.clearPreviewExport);
   const toggleFullscreenPreview = useFullscreenPreviewStore(
     (s) => s.toggleFullscreenPreview,
   );
@@ -103,6 +107,15 @@ export function SoundscapePreview({
       );
     }
   }, [setOrbit]);
+
+  useEffect(() => clearPreviewExport, [clearPreviewExport]);
+
+  const handleCanvasCreated = useCallback(
+    ({ gl, scene, camera }: RootState) => {
+      setPreviewExport(gl.domElement, gl, scene, camera);
+    },
+    [setPreviewExport],
+  );
 
   const formatTime = (seconds: number) => {
     if (!Number.isFinite(seconds) || seconds < 0) {
@@ -206,6 +219,7 @@ export function SoundscapePreview({
       )}
       <Canvas
         shadows
+        onCreated={handleCanvasCreated}
         camera={{
           position: [300, 200, 150],
           fov: 20,

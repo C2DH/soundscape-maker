@@ -11,9 +11,10 @@ import {
 import * as THREE from "three";
 import AudioInput from "../components/AudioInput";
 import { SoundscapePreview } from "../components/SoundscapePreview";
+import { useFullscreenPreviewStore, usePreviewExportStore } from "../store";
+import { exportHighQualityCanvas } from "../utils/canvasExporter";
 import { exportSoundscapeAsGltf } from "../utils/gltfExporter";
 import { buildAndDownloadSoundscapePackage } from "../utils/packageBuilder";
-import { useFullscreenPreviewStore } from "../store";
 
 const STANDARD_NUM_CHUNKS = 200;
 const STANDARD_SOUNDSCAPE_LENGTH = 200;
@@ -205,6 +206,7 @@ export default function GenerateJSON() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingGltf, setIsExportingGltf] = useState(false);
+  const [isExportingImage, setIsExportingImage] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [generatedNumChunks, setGeneratedNumChunks] =
@@ -215,6 +217,10 @@ export default function GenerateJSON() {
   const setFullscreenPreviewOpen = useFullscreenPreviewStore(
     (s) => s.setFullscreenPreviewOpen,
   );
+  const previewCanvas = usePreviewExportStore((s) => s.canvas);
+  const previewRenderer = usePreviewExportStore((s) => s.renderer);
+  const previewScene = usePreviewExportStore((s) => s.scene);
+  const previewCamera = usePreviewExportStore((s) => s.camera);
   const levaStore = useCreateStore();
   const [showLevaNumchunksPopup, setShowLevaNumchunksPopup] = useState(false);
   const [pendingNumChunks, setPendingNumChunks] = useState<number | null>(null);
@@ -293,39 +299,6 @@ export default function GenerateJSON() {
     }),
     { store: levaStore },
     [generatedNumChunks, selectedFile],
-  );
-
-  useControls(
-    "Soundscape Controls",
-    {
-      Actions: folder({
-        swapGradientSides: button(() => {
-          const currentLeftTopColor = getControls("leftTopColor");
-          const currentLeftBottomColor = getControls("leftBottomColor");
-          const currentRightTopColor = getControls("rightTopColor");
-          const currentRightBottomColor = getControls("rightBottomColor");
-
-          setControls({
-            leftTopColor: currentRightTopColor,
-            leftBottomColor: currentRightBottomColor,
-            rightTopColor: currentLeftTopColor,
-            rightBottomColor: currentLeftBottomColor,
-          });
-          blurActiveElement();
-        }),
-        exportPackage: button(() => {
-          if (isExporting) return;
-          void handleExport();
-          blurActiveElement();
-        }),
-        export3DModel: button(() => {
-          if (isExportingGltf) return;
-          void handleExportGltf();
-          blurActiveElement();
-        }),
-      }),
-    },
-    { store: levaStore },
   );
 
   const regenerateSoundscape = useCallback(
@@ -540,6 +513,44 @@ export default function GenerateJSON() {
   const appliedNumChunks = analysis ? generatedNumChunks : numChunks;
   const zSpacing = soundscapeLength / Math.max(1, appliedNumChunks);
 
+  // scale raw data to reasonable height and also produce vectors
+  const { soundLinesVectors, scaledLists } = useMemo(() => {
+    if (!analysis)
+      return {
+        soundLinesVectors: [] as THREE.Vector3[][],
+        scaledLists: [] as number[][],
+      };
+    // optionally amplify values; larger amplifyFactor should yield a taller model
+    let tempAmplified = null;
+    if (!reverseOutput) {
+      tempAmplified = analysis
+        .map((row) => row.map((y) => Math.pow(y, amplifyFactor)))
+        .reverse();
+    } else {
+      tempAmplified = analysis.map((row) =>
+        row.map((y) => Math.pow(y, amplifyFactor)),
+      );
+    }
+    const amplified = tempAmplified;
+    // instead of normalizing to a constant height, simply multiply by an overall
+    // constant so that increasing amplifyFactor makes the mesh visibly larger
+    const baseHeight = 3; // adjust if the mesh is too tall/short
+    const scaleFactor = amplifyFactor * baseHeight;
+    const zOffset = ((analysis.length || 0) - 1) * zSpacing * 0.5;
+    const scaled = amplified.map((row) => row.map((y) => y * scaleFactor));
+    const vectors = scaled.map((row, t) =>
+      row.map(
+        (y, x) =>
+          new THREE.Vector3(x - row.length / 2, y, t * zSpacing - zOffset),
+      ),
+    );
+    if (!reverseOutput) {
+      return { soundLinesVectors: vectors.reverse(), scaledLists: scaled };
+    } else {
+      return { soundLinesVectors: vectors, scaledLists: scaled };
+    }
+  }, [amplifyFactor, analysis, reverseOutput, zSpacing]);
+
   const handleExport = async () => {
     if (!selectedFile || !analysis || duration === null) return;
 
@@ -585,43 +596,83 @@ export default function GenerateJSON() {
     }
   };
 
-  // scale raw data to reasonable height and also produce vectors
-  const { soundLinesVectors, scaledLists } = useMemo(() => {
-    if (!analysis)
-      return {
-        soundLinesVectors: [] as THREE.Vector3[][],
-        scaledLists: [] as number[][],
-      };
-    // optionally amplify values; larger amplifyFactor should yield a taller model
-    let tempAmplified = null;
-    if (!reverseOutput) {
-      tempAmplified = analysis
-        .map((row) => row.map((y) => Math.pow(y, amplifyFactor)))
-        .reverse();
-    } else {
-      tempAmplified = analysis.map((row) =>
-        row.map((y) => Math.pow(y, amplifyFactor)),
-      );
+  const handleExportImage = async () => {
+    if (
+      !selectedFile ||
+      !previewCanvas ||
+      !previewRenderer ||
+      !previewScene ||
+      !previewCamera
+    ) {
+      return;
     }
-    const amplified = tempAmplified;
-    // instead of normalizing to a constant height, simply multiply by an overall
-    // constant so that increasing amplifyFactor makes the mesh visibly larger
-    const baseHeight = 3; // adjust if the mesh is too tall/short
-    const scaleFactor = amplifyFactor * baseHeight;
-    const zOffset = ((analysis.length || 0) - 1) * zSpacing * 0.5;
-    const scaled = amplified.map((row) => row.map((y) => y * scaleFactor));
-    const vectors = scaled.map((row, t) =>
-      row.map(
-        (y, x) =>
-          new THREE.Vector3(x - row.length / 2, y, t * zSpacing - zOffset),
-      ),
-    );
-    if (!reverseOutput) {
-      return { soundLinesVectors: vectors.reverse(), scaledLists: scaled };
-    } else {
-      return { soundLinesVectors: vectors, scaledLists: scaled };
+
+    setError(null);
+    setIsExportingImage(true);
+
+    try {
+      await exportHighQualityCanvas({
+        sourceCanvas: previewCanvas,
+        renderer: previewRenderer,
+        scene: previewScene,
+        camera: previewCamera,
+        fileName: `${selectedFile.name.replace(/\.[^/.]+$/, "") || "soundscape"}.png`,
+      });
+    } catch (e) {
+      console.error(e);
+      setError("Failed to export image.");
+    } finally {
+      setIsExportingImage(false);
     }
-  }, [amplifyFactor, analysis, reverseOutput, zSpacing]);
+  };
+
+  useControls(
+    "Soundscape Controls",
+    () => ({
+      Actions: folder({
+        swapGradientSides: button(() => {
+          const currentLeftTopColor = getControls("leftTopColor");
+          const currentLeftBottomColor = getControls("leftBottomColor");
+          const currentRightTopColor = getControls("rightTopColor");
+          const currentRightBottomColor = getControls("rightBottomColor");
+
+          setControls({
+            leftTopColor: currentRightTopColor,
+            leftBottomColor: currentRightBottomColor,
+            rightTopColor: currentLeftTopColor,
+            rightBottomColor: currentLeftBottomColor,
+          });
+          blurActiveElement();
+        }),
+        exportPackage: button(() => {
+          if (isExporting) return;
+          void handleExport();
+          blurActiveElement();
+        }),
+        export3DModel: button(() => {
+          if (isExportingGltf) return;
+          void handleExportGltf();
+          blurActiveElement();
+        }),
+        downloadHighQualityImage: button(() => {
+          if (isExportingImage) return;
+          void handleExportImage();
+          blurActiveElement();
+        }),
+      }),
+    }),
+    { store: levaStore },
+    [
+      getControls,
+      handleExport,
+      handleExportGltf,
+      handleExportImage,
+      isExporting,
+      isExportingGltf,
+      isExportingImage,
+      setControls,
+    ],
+  );
 
   return (
     <main className="app-root flex items-center justify-center min-h-screen p-4">

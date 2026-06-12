@@ -92,6 +92,36 @@ export const useOrbitStore = create<OrbitState>((set) => ({
   setOrbit: (cameraPos, target) => set({ cameraPos, target }),
 }));
 
+interface PreviewExportState {
+  canvas: HTMLCanvasElement | null
+  renderer: THREE.WebGLRenderer | null
+  scene: THREE.Scene | null
+  camera: THREE.Camera | null
+  setPreviewExport: (
+    canvas: HTMLCanvasElement,
+    renderer: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    camera: THREE.Camera,
+  ) => void
+  clearPreviewExport: () => void
+}
+
+export const usePreviewExportStore = create<PreviewExportState>((set) => ({
+  canvas: null,
+  renderer: null,
+  scene: null,
+  camera: null,
+  setPreviewExport: (canvas, renderer, scene, camera) =>
+    set({ canvas, renderer, scene, camera }),
+  clearPreviewExport: () =>
+    set({
+      canvas: null,
+      renderer: null,
+      scene: null,
+      camera: null,
+    }),
+}))
+
 interface AudioState {
   currentTime: number;
   duration: number;
