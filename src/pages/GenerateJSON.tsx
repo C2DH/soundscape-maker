@@ -295,39 +295,6 @@ export default function GenerateJSON() {
     [generatedNumChunks, selectedFile],
   );
 
-  useControls(
-    "Soundscape Controls",
-    {
-      Actions: folder({
-        swapGradientSides: button(() => {
-          const currentLeftTopColor = getControls("leftTopColor");
-          const currentLeftBottomColor = getControls("leftBottomColor");
-          const currentRightTopColor = getControls("rightTopColor");
-          const currentRightBottomColor = getControls("rightBottomColor");
-
-          setControls({
-            leftTopColor: currentRightTopColor,
-            leftBottomColor: currentRightBottomColor,
-            rightTopColor: currentLeftTopColor,
-            rightBottomColor: currentLeftBottomColor,
-          });
-          blurActiveElement();
-        }),
-        exportPackage: button(() => {
-          if (isExporting) return;
-          void handleExport();
-          blurActiveElement();
-        }),
-        export3DModel: button(() => {
-          if (isExportingGltf) return;
-          void handleExportGltf();
-          blurActiveElement();
-        }),
-      }),
-    },
-    { store: levaStore },
-  );
-
   const regenerateSoundscape = useCallback(
     async (file: File, chunkCount: number) => {
       setError(null);
@@ -540,51 +507,6 @@ export default function GenerateJSON() {
   const appliedNumChunks = analysis ? generatedNumChunks : numChunks;
   const zSpacing = soundscapeLength / Math.max(1, appliedNumChunks);
 
-  const handleExport = async () => {
-    if (!selectedFile || !analysis || duration === null) return;
-
-    setError(null);
-    setIsExporting(true);
-
-    try {
-      await buildAndDownloadSoundscapePackage({
-        sourceFile: selectedFile,
-        analysis,
-        duration,
-      });
-    } catch (e) {
-      console.error(e);
-      setError("Failed to export package.");
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleExportGltf = async () => {
-    if (!selectedFile || !scaledLists.length) return;
-
-    setError(null);
-    setIsExportingGltf(true);
-
-    try {
-      await exportSoundscapeAsGltf({
-        lists: scaledLists,
-        zSpacing,
-        fileName: `${selectedFile.name.replace(/\.[^/.]+$/, "") || "soundscape"}.glb`,
-        leftTopColor,
-        leftBottomColor,
-        rightTopColor,
-        rightBottomColor,
-        gradientLeftToRight,
-      });
-    } catch (e) {
-      console.error(e);
-      setError("Failed to export 3D model.");
-    } finally {
-      setIsExportingGltf(false);
-    }
-  };
-
   // scale raw data to reasonable height and also produce vectors
   const { soundLinesVectors, scaledLists } = useMemo(() => {
     if (!analysis)
@@ -622,6 +544,127 @@ export default function GenerateJSON() {
       return { soundLinesVectors: vectors, scaledLists: scaled };
     }
   }, [amplifyFactor, analysis, reverseOutput, zSpacing]);
+
+  const handleExport = useCallback(async () => {
+    if (
+      isProcessing ||
+      isExporting ||
+      !selectedFile ||
+      !analysis?.length ||
+      duration === null
+    ) {
+      return;
+    }
+
+    setError(null);
+    setIsExporting(true);
+
+    try {
+      await buildAndDownloadSoundscapePackage({
+        sourceFile: selectedFile,
+        analysis,
+        duration,
+      });
+    } catch (e) {
+      console.error(e);
+      setError("Failed to export package.");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [analysis, duration, isExporting, isProcessing, selectedFile]);
+
+  const handleExportGltf = useCallback(async () => {
+    if (isProcessing || isExportingGltf || !selectedFile || !scaledLists.length)
+      return;
+
+    setError(null);
+    setIsExportingGltf(true);
+
+    try {
+      await exportSoundscapeAsGltf({
+        lists: scaledLists,
+        zSpacing,
+        fileName: `${selectedFile.name.replace(/\.[^/.]+$/, "") || "soundscape"}.glb`,
+        leftTopColor,
+        leftBottomColor,
+        rightTopColor,
+        rightBottomColor,
+        gradientLeftToRight,
+      });
+    } catch (e) {
+      console.error(e);
+      setError("Failed to export 3D model.");
+    } finally {
+      setIsExportingGltf(false);
+    }
+  }, [
+    gradientLeftToRight,
+    isExportingGltf,
+    isProcessing,
+    leftBottomColor,
+    leftTopColor,
+    rightBottomColor,
+    rightTopColor,
+    scaledLists,
+    selectedFile,
+    zSpacing,
+  ]);
+
+  const canExportPackage = Boolean(
+    selectedFile &&
+      analysis?.length &&
+      duration !== null &&
+      !isProcessing &&
+      !isExporting,
+  );
+  const canExportGltf = Boolean(
+    selectedFile && scaledLists.length && !isProcessing && !isExportingGltf,
+  );
+
+  useControls(
+    "Soundscape Controls",
+    () => ({
+      Actions: folder({
+        swapGradientSides: button(() => {
+          const currentLeftTopColor = getControls("leftTopColor");
+          const currentLeftBottomColor = getControls("leftBottomColor");
+          const currentRightTopColor = getControls("rightTopColor");
+          const currentRightBottomColor = getControls("rightBottomColor");
+
+          setControls({
+            leftTopColor: currentRightTopColor,
+            leftBottomColor: currentRightBottomColor,
+            rightTopColor: currentLeftTopColor,
+            rightBottomColor: currentLeftBottomColor,
+          });
+          blurActiveElement();
+        }),
+        exportPackage: button(
+          () => {
+            void handleExport();
+            blurActiveElement();
+          },
+          { disabled: !canExportPackage },
+        ),
+        export3DModel: button(
+          () => {
+            void handleExportGltf();
+            blurActiveElement();
+          },
+          { disabled: !canExportGltf },
+        ),
+      }),
+    }),
+    { store: levaStore },
+    [
+      canExportGltf,
+      canExportPackage,
+      getControls,
+      handleExport,
+      handleExportGltf,
+      setControls,
+    ],
+  );
 
   return (
     <main className="app-root flex items-center justify-center min-h-screen p-4">
@@ -672,6 +715,14 @@ export default function GenerateJSON() {
           />
         </div>
       )}
+      {error && (
+        <div
+          role="alert"
+          className="fixed bottom-6 left-4 right-4 z-30 mx-auto max-w-xl rounded-lg border border-red-400/50 bg-red-950/95 px-4 py-3 text-red-100 shadow-lg"
+        >
+          {error}
+        </div>
+      )}
       <div className="app-content mb-24">
         <h1 className="mb-5" style={{ fontSize: "4rem" }}>
           Generate Soundscape
@@ -684,7 +735,6 @@ export default function GenerateJSON() {
         <AudioInput onAudioSelected={handleAudioSelected} />
 
         {isProcessing && <p>Processing audio…</p>}
-        {error && <p>{error}</p>}
 
         {/* {analysis && totalChunks > 0 && (
           <div className="visual-section">
